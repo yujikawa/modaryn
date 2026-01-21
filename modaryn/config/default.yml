@@ -1,0 +1,6 @@
+sql_complexity:
+  join_count: 2.0
+  cte_count: 1.5
+
+importance:
+  downstream_model_count: 1.0

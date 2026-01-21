@@ -1,0 +1,22 @@
+[project]
+name = "modaryn"
+version = "0.1.0"
+description = "modaryn analyzes dbt projects to score model complexity and structural importance, helping teams identify high-risk and high-impact data models."
+authors = [{ name = "Your Name", email = "you@example.com" }]
+dependencies = [
+    "typer[all]",
+    "sqlglot",
+    "rich",
+    "pyyaml",
+    "jinja2",
+    "plotly",
+    "numpy",
+    "pandas",
+]
+requires-python = ">=3.9"
+
+[project.scripts]
+modaryn = "modaryn.cli:app"
+
+[tool.setuptools]
+packages = ["modaryn"]

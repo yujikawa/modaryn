@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# uv
+.venv/
+.uv-venv/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
