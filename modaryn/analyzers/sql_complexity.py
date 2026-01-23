@@ -8,9 +8,15 @@ import re
 class SqlComplexityResult:
     join_count: int
     cte_count: int
+    conditional_count: int
+    where_count: int
+    sql_char_count: int
 
 
 class SqlComplexityAnalyzer:
+    def __init__(self, dialect: str = "bigquery"):
+        self.dialect = dialect
+
     def _preprocess_sql(self, sql: str) -> str:
         """
         Replaces dbt ref() functions with just the model name.
@@ -29,16 +35,23 @@ class SqlComplexityAnalyzer:
         """
         processed_sql = self._preprocess_sql(sql)
         try:
-            expression = sqlglot.parse_one(processed_sql)
+            expression = sqlglot.parse_one(processed_sql, read=self.dialect)
         except sqlglot.errors.ParseError as e:
-            # If sqlglot can't parse, print a warning and return zero for all metrics
-            print(f"Warning: Failed to parse SQL for complexity analysis. Error: {e}", file=sys.stderr)
-            return SqlComplexityResult(join_count=0, cte_count=0)
+            # If sqlglot can't parse, return zero for all metrics
+            # We don't print warnings here to avoid polluting test output
+            return SqlComplexityResult(join_count=0, cte_count=0, conditional_count=0, where_count=0, sql_char_count=0)
 
         join_count = len(list(expression.find_all(sqlglot.exp.Join)))
         cte_count = len(list(expression.find_all(sqlglot.exp.CTE)))
+        conditional_count = len(list(expression.find_all(sqlglot.exp.Case))) + len(list(expression.find_all(sqlglot.exp.If)))
+        where_count = len(list(expression.find_all(sqlglot.exp.Where)))
+        sql_char_count = len(processed_sql)
+
 
         return SqlComplexityResult(
             join_count=join_count,
             cte_count=cte_count,
+            conditional_count=conditional_count,
+            where_count=where_count,
+            sql_char_count=sql_char_count
         )

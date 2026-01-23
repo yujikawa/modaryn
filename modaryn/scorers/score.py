@@ -1,6 +1,7 @@
 import yaml
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
+import numpy as np
 
 from modaryn.domain.model import DbtProject, DbtModel
 
@@ -18,7 +19,6 @@ class Scorer:
         if config_path:
             with open(config_path, "r") as f:
                 user_weights = yaml.safe_load(f)
-            # A simple merge, user weights override defaults
             if "sql_complexity" in user_weights:
                 weights["sql_complexity"].update(user_weights["sql_complexity"])
             if "importance" in user_weights:
@@ -26,26 +26,41 @@ class Scorer:
         return weights
 
     def score_project(self, project: DbtProject):
-        for model in project.models.values():
-            self.score_model(model)
+        """Scores all models in a project using Z-scores for ranking."""
+        if not project.models:
+            return
 
-    def score_model(self, model: DbtModel):
+        raw_scores: Dict[str, float] = {}
+        for model in project.models.values():
+            raw_scores[model.unique_id] = self._calculate_raw_score(model)
+
+        score_values: List[float] = list(raw_scores.values())
+        mean_score = np.mean(score_values)
+        std_dev = np.std(score_values)
+
+        for model in project.models.values():
+            raw_score = raw_scores[model.unique_id]
+            if std_dev > 0:
+                model.score = (raw_score - mean_score) / std_dev
+            else:
+                model.score = 0.0  # All models have the same raw score
+
+    def _calculate_raw_score(self, model: DbtModel) -> float:
+        """Calculates a raw, un-normalized score for a single model."""
         sql_complexity_weights = self.weights.get("sql_complexity", {})
         importance_weights = self.weights.get("importance", {})
 
         complexity_score = 0
         if model.complexity:
-            complexity_score += (
-                model.complexity.join_count
-                * sql_complexity_weights.get("join_count", 0)
-            )
-            complexity_score += (
-                model.complexity.cte_count * sql_complexity_weights.get("cte_count", 0)
-            )
+            complexity_score += model.complexity.join_count * sql_complexity_weights.get("join_count", 0)
+            complexity_score += model.complexity.cte_count * sql_complexity_weights.get("cte_count", 0)
+            complexity_score += model.complexity.conditional_count * sql_complexity_weights.get("conditional_count", 0)
+            complexity_score += model.complexity.where_count * sql_complexity_weights.get("where_count", 0)
+            complexity_score += model.complexity.sql_char_count * sql_complexity_weights.get("sql_char_count", 0)
 
         importance_score = (
             model.downstream_model_count
             * importance_weights.get("downstream_model_count", 0)
         )
 
-        model.score = complexity_score + importance_score
+        return complexity_score + importance_score

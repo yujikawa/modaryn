@@ -7,9 +7,9 @@ from modaryn.domain.model import DbtModel, DbtProject
 
 
 class ManifestLoader:
-    def __init__(self, manifest_path: Path):
+    def __init__(self, manifest_path: Path, dialect: str = "bigquery"):
         self.manifest_path = manifest_path
-        self.sql_analyzer = SqlComplexityAnalyzer()
+        self.sql_analyzer = SqlComplexityAnalyzer(dialect=dialect)
 
     def load(self) -> DbtProject:
         with open(self.manifest_path, "r") as f:
@@ -20,7 +20,7 @@ class ManifestLoader:
 
         for unique_id, node_data in nodes.items():
             if node_data.get("resource_type") == "model":
-                raw_sql = node_data.get("raw_sql", "")
+                raw_sql = node_data.get("raw_code", "")
                 model = DbtModel(
                     unique_id=unique_id,
                     model_name=node_data.get("name", ""),

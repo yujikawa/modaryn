@@ -15,8 +15,13 @@ dependencies = [
 ]
 requires-python = ">=3.9"
 
+[project.optional-dependencies]
+test = [
+    "pytest",
+]
+
 [project.scripts]
 modaryn = "modaryn.cli:app"
 
 [tool.setuptools]
-packages = ["modaryn"]
+packages = ["modaryn", "tests"]

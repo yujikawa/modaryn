@@ -21,9 +21,12 @@ HTML_TEMPLATE = """
         <tr>
             <th>Rank</th>
             <th>Model Name</th>
-            <th>Score</th>
+            <th>Score (Z-score)</th>
             <th>JOINs</th>
             <th>CTEs</th>
+            <th>Conditionals</th>
+            <th>WHEREs</th>
+            <th>SQL Chars</th>
             <th>Downstream Models</th>
         </tr>
         {% for model in models %}
@@ -33,6 +36,9 @@ HTML_TEMPLATE = """
             <td>{{ "%.2f"|format(model.score) }}</td>
             <td>{{ model.complexity.join_count if model.complexity else 'N/A' }}</td>
             <td>{{ model.complexity.cte_count if model.complexity else 'N/A' }}</td>
+            <td>{{ model.complexity.conditional_count if model.complexity else 'N/A' }}</td>
+            <td>{{ model.complexity.where_count if model.complexity else 'N/A' }}</td>
+            <td>{{ model.complexity.sql_char_count if model.complexity else 'N/A' }}</td>
             <td>{{ model.downstream_model_count }}</td>
         </tr>
         {% endfor %}
