@@ -1,14 +1,15 @@
 import typer
 from pathlib import Path
-from rich.console import Console
-from rich.table import Table
+from rich.console import Console # Keep Console for general messages
 from typing import Optional
 from enum import Enum
 
 from modaryn.loaders.manifest import ManifestLoader
-from modaryn.outputs.markdown import markdown_output
-from modaryn.outputs.html import html_output
 from modaryn.scorers.score import Scorer
+from modaryn.outputs.terminal import TerminalOutput
+from modaryn.outputs.markdown import MarkdownOutput
+from modaryn.outputs.html import HtmlOutput
+from modaryn.outputs import OutputGenerator # Import the base class for type hinting
 
 
 class OutputFormat(str, Enum):
@@ -18,7 +19,7 @@ class OutputFormat(str, Enum):
 
 
 app = typer.Typer(help="A CLI to analyze dbt projects and score model complexity.")
-console = Console()
+console = Console() # Keep for general messages
 
 @app.callback()
 def main():
@@ -74,52 +75,31 @@ def scan(
 
     console.print(f"✅ Found [bold]{len(project.models)}[/bold] models.")
 
-    if format == OutputFormat.markdown:
-        report = markdown_output(project, scored=False)
+    output_generator: OutputGenerator
+    if format == OutputFormat.terminal:
+        output_generator = TerminalOutput()
+    elif format == OutputFormat.markdown:
+        output_generator = MarkdownOutput()
+    elif format == OutputFormat.html:
+        output_generator = HtmlOutput()
+    else:
+        # This case should ideally not be reached due to Enum validation
+        console.print(f"[bold red]Unsupported output format: {format.value}[/bold red]")
+        raise typer.Exit(code=1)
+
+    report_content = output_generator.generate_scan_report(project)
+
+    if report_content:
         if output:
             with open(output, "w") as f:
-                f.write(report)
+                f.write(report_content)
             console.print(f"✅ Report saved to [bold cyan]{output}[/bold cyan]")
         else:
-            print(report)
-    elif format == OutputFormat.html:
-        console.print("[bold yellow]Warning: HTML output is only supported for the 'score' command.[/bold yellow]")
-    else:  # terminal format
+            print(report_content)
+    else:
         if output:
             console.print("[bold yellow]Warning: --output is only supported for file-based formats. Printing to terminal.[/bold yellow]")
-        
-        table = Table("Model Name", "JOINs", "CTEs", "Conditionals", "WHEREs", "SQL Chars", "Downstream Children")
-        sorted_models = sorted(
-            project.models.values(),
-            key=lambda m: m.downstream_model_count,
-            reverse=True,
-        )
 
-        for model in sorted_models:
-            if model.complexity:
-                join_count = str(model.complexity.join_count)
-                cte_count = str(model.complexity.cte_count)
-                conditional_count = str(model.complexity.conditional_count)
-                where_count = str(model.complexity.where_count)
-                sql_char_count = str(model.complexity.sql_char_count)
-            else:
-                join_count = "N/A"
-                cte_count = "N/A"
-                conditional_count = "N/A"
-                where_count = "N/A"
-                sql_char_count = "N/A"
-
-            table.add_row(
-                model.model_name,
-                join_count,
-                cte_count,
-                conditional_count,
-                where_count,
-                sql_char_count,
-                str(model.downstream_model_count),
-            )
-
-        console.print(table)
 
 @app.command()
 def score(
@@ -178,39 +158,30 @@ def score(
     scorer = Scorer(config)
     scorer.score_project(project)
 
-    if format == OutputFormat.html:
-        report = html_output(project)
-        if not output:
-            output = Path("modaryn_report.html")
-        with open(output, "w") as f:
-            f.write(report)
-        console.print(f"✅ HTML report saved to [bold cyan]{output}[/bold cyan]")
-
+    output_generator: OutputGenerator
+    if format == OutputFormat.terminal:
+        output_generator = TerminalOutput()
     elif format == OutputFormat.markdown:
-        report = markdown_output(project, scored=True)
+        output_generator = MarkdownOutput()
+    elif format == OutputFormat.html:
+        output_generator = HtmlOutput()
+    else:
+        # This case should ideally not be reached due to Enum validation
+        console.print(f"[bold red]Unsupported output format: {format.value}[/bold red]")
+        raise typer.Exit(code=1)
+    
+    report_content = output_generator.generate_score_report(project)
+
+    if report_content:
         if output:
             with open(output, "w") as f:
-                f.write(report)
+                f.write(report_content)
             console.print(f"✅ Report saved to [bold cyan]{output}[/bold cyan]")
         else:
-            print(report)
-
-    else: # Terminal output
-        table = Table("Rank", "Model Name", "Score")
-        sorted_models = sorted(
-            project.models.values(),
-            key=lambda m: m.score,
-            reverse=True,
-        )
-
-        for i, model in enumerate(sorted_models):
-            table.add_row(
-                str(i + 1),
-                model.model_name,
-                f"{model.score:.2f}",
-            )
-        
-        console.print(table)
+            print(report_content)
+    else:
+        if output:
+            console.print("[bold yellow]Warning: --output is only supported for file-based formats. Printing to terminal.[/bold yellow]")
 
 if __name__ == "__main__":
     app()
