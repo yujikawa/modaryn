@@ -8,8 +8,8 @@ The tool leverages `sqlglot` for SQL parsing, `typer` for building the CLI, and 
 
 *   **Loaders:** Reads the dbt `manifest.json` file to construct an in-memory representation of the dbt project, including models, their SQL content, and dependencies.
 *   **Analyzers:**
-    *   `SqlComplexityAnalyzer`: Parses the raw SQL of dbt models to extract complexity metrics such as the number of `JOIN`s and Common Table Expressions (CTEs).
-*   **Scorers:** Calculates a combined score for each dbt model based on its SQL complexity and structural importance (e.g., number of downstream models). This scoring uses configurable weights defined in a YAML file.
+    *   `SqlComplexityAnalyzer`: Parses the raw SQL of dbt models to extract complexity metrics such as the number of `JOIN`s, Common Table Expressions (CTEs), conditional statements (`CASE`, `IF`), `WHERE` clauses, and the total character count of the SQL.
+*   **Scorers:** Calculates a combined Z-score for each dbt model based on its SQL complexity and structural importance (e.g., number of downstream models), enabling ranked identification of high-risk and high-impact models. This scoring uses configurable weights defined in a YAML file.
 *   **Outputs:** Provides various output formats for the analysis results, including terminal tables, Markdown, and HTML reports.
 
 ## Building and Running
@@ -28,6 +28,7 @@ The `modaryn` CLI provides the following commands:
 
 *   **`modaryn scan`**: Scans a dbt project and displays basic model information.
     *   `--manifest-path`, `-m`: Path to the dbt `manifest.json` file (default: `target/manifest.json`).
+    *   `--dialect`, `-d`: The SQL dialect to use for parsing (default: `bigquery`).
     *   `--format`, `-f`: Output format (`terminal`, `markdown`).
     *   `--output`, `-o`: Path to write the output file (for `markdown` format).
     Example:
@@ -37,6 +38,7 @@ The `modaryn` CLI provides the following commands:
 
 *   **`modaryn score`**: Scores dbt models based on complexity and importance.
     *   `--manifest-path`, `-m`: Path to the dbt `manifest.json` file (default: `target/manifest.json`).
+    *   `--dialect`, `-d`: The SQL dialect to use for parsing (default: `bigquery`).
     *   `--config`, `-c`: Path to a custom weights configuration YAML file (e.g., `custom_weights.yml`).
     *   `--format`, `-f`: Output format (`terminal`, `markdown`, `html`).
     *   `--output`, `-o`: Path to write the output file.
@@ -54,6 +56,9 @@ Example `custom_weights.yml`:
 sql_complexity:
   join_count: 3.0
   cte_count: 2.0
+  conditional_count: 1.0
+  where_count: 0.5
+  sql_char_count: 0.01
 importance:
   downstream_model_count: 1.5
 ```

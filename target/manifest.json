@@ -5,7 +5,7 @@
       "resource_type": "model",
       "name": "model_a",
       "path": "models/model_a.sql",
-      "raw_sql": "select 1 as id",
+      "raw_code": "select 1 as id",
       "depends_on": {
         "nodes": []
       }
@@ -15,7 +15,7 @@
       "resource_type": "model",
       "name": "model_b",
       "path": "models/model_b.sql",
-      "raw_sql": "select * from {{ ref('model_a') }}",
+      "raw_code": "select * from {{ ref('model_a') }}",
       "depends_on": {
         "nodes": [
           "model.modaryn_test.model_a"
@@ -27,7 +27,7 @@
       "resource_type": "model",
       "name": "model_c",
       "path": "models/model_c.sql",
-      "raw_sql": "select * from {{ ref('model_a') }}",
+      "raw_code": "select * from {{ ref('model_a') }}",
       "depends_on": {
         "nodes": [
           "model.modaryn_test.model_a"
@@ -39,7 +39,7 @@
       "resource_type": "model",
       "name": "model_d",
       "path": "models/model_d.sql",
-      "raw_sql": "WITH model_b_cte AS (\n    SELECT * FROM {{ ref('model_b') }}\n)\nSELECT\n    b.id,\n    c.id\nFROM model_b_cte AS b\nJOIN {{ ref('model_c') }} AS c ON b.id = c.id",
+      "raw_code": "WITH model_b_cte AS (\n    SELECT * FROM {{ ref('model_b') }}\n)\nSELECT\n    b.id,\n    c.id\nFROM model_b_cte AS b\nJOIN {{ ref('model_c') }} AS c ON b.id = c.id",
       "depends_on": {
         "nodes": [
           "model.modaryn_test.model_b",

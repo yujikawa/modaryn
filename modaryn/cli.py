@@ -38,6 +38,13 @@ def scan(
         readable=True,
         resolve_path=True,
     ),
+    dialect: str = typer.Option(
+        "bigquery",
+        "--dialect",
+        "-d",
+        help="The SQL dialect to use for parsing.",
+        case_sensitive=False,
+    ),
     format: OutputFormat = typer.Option(
         OutputFormat.terminal,
         "--format",
@@ -59,7 +66,7 @@ def scan(
     console.print(f"🔍 Scanning manifest file: [bold cyan]{manifest_path}[/bold cyan]")
 
     try:
-        loader = ManifestLoader(manifest_path)
+        loader = ManifestLoader(manifest_path, dialect=dialect)
         project = loader.load()
     except Exception as e:
         console.print(f"[bold red]Error loading manifest file: {e}[/bold red]")
@@ -68,9 +75,7 @@ def scan(
     console.print(f"✅ Found [bold]{len(project.models)}[/bold] models.")
 
     if format == OutputFormat.markdown:
-        # This is a bit of a hack, we should refactor the output modules
-        # to handle both scan and score data more generically.
-        report = markdown_output(project).replace("JOINs | CTEs", "JOINs | CTEs | Score")
+        report = markdown_output(project, scored=False)
         if output:
             with open(output, "w") as f:
                 f.write(report)
@@ -83,7 +88,7 @@ def scan(
         if output:
             console.print("[bold yellow]Warning: --output is only supported for file-based formats. Printing to terminal.[/bold yellow]")
         
-        table = Table("Model Name", "JOINs", "CTEs", "Downstream Children")
+        table = Table("Model Name", "JOINs", "CTEs", "Conditionals", "WHEREs", "SQL Chars", "Downstream Children")
         sorted_models = sorted(
             project.models.values(),
             key=lambda m: m.downstream_model_count,
@@ -94,14 +99,23 @@ def scan(
             if model.complexity:
                 join_count = str(model.complexity.join_count)
                 cte_count = str(model.complexity.cte_count)
+                conditional_count = str(model.complexity.conditional_count)
+                where_count = str(model.complexity.where_count)
+                sql_char_count = str(model.complexity.sql_char_count)
             else:
                 join_count = "N/A"
                 cte_count = "N/A"
+                conditional_count = "N/A"
+                where_count = "N/A"
+                sql_char_count = "N/A"
 
             table.add_row(
                 model.model_name,
                 join_count,
                 cte_count,
+                conditional_count,
+                where_count,
+                sql_char_count,
                 str(model.downstream_model_count),
             )
 
@@ -117,6 +131,13 @@ def score(
         exists=True,
         readable=True,
         resolve_path=True,
+    ),
+    dialect: str = typer.Option(
+        "bigquery",
+        "--dialect",
+        "-d",
+        help="The SQL dialect to use for parsing.",
+        case_sensitive=False,
     ),
     config: Optional[Path] = typer.Option(
         None,
@@ -147,7 +168,7 @@ def score(
     """
     console.print(f"🔍 Loading manifest file: [bold cyan]{manifest_path}[/bold cyan]")
     try:
-        loader = ManifestLoader(manifest_path)
+        loader = ManifestLoader(manifest_path, dialect=dialect)
         project = loader.load()
     except Exception as e:
         console.print(f"[bold red]Error loading manifest file: {e}[/bold red]")
@@ -166,22 +187,13 @@ def score(
         console.print(f"✅ HTML report saved to [bold cyan]{output}[/bold cyan]")
 
     elif format == OutputFormat.markdown:
-        # This part is not fully implemented in markdown_output yet.
-        # For now, it will just be a simple table.
-        console.print("[bold yellow]Warning: Markdown output for score is not fully implemented.[/bold yellow]")
-        table = Table("Rank", "Model Name", "Score")
-        sorted_models = sorted(
-            project.models.values(),
-            key=lambda m: m.score,
-            reverse=True,
-        )
-        for i, model in enumerate(sorted_models):
-            table.add_row(
-                str(i + 1),
-                model.model_name,
-                f"{model.score:.2f}",
-            )
-        console.print(table)
+        report = markdown_output(project, scored=True)
+        if output:
+            with open(output, "w") as f:
+                f.write(report)
+            console.print(f"✅ Report saved to [bold cyan]{output}[/bold cyan]")
+        else:
+            print(report)
 
     else: # Terminal output
         table = Table("Rank", "Model Name", "Score")
