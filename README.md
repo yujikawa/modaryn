@@ -18,13 +18,13 @@ The `modaryn` CLI provides two main commands: `scan` and `score`.
 #### `scan` command
 Scans a dbt project and displays basic model information.
 ```bash
-modaryn scan --manifest-path target/manifest.json --dialect bigquery --format terminal
+modaryn scan --project-path . --dialect bigquery --format terminal
 ```
 
 #### `score` command
 Scores dbt models based on complexity and importance, and provides a Z-score based ranking.
 ```bash
-modaryn score --manifest-path target/manifest.json --dialect bigquery --config custom_weights.yml --format html --output modaryn_report.html
+modaryn score --project-path . --dialect bigquery --config custom_weights.yml --format html --output modaryn_report.html
 ```
 
 ---
@@ -44,11 +44,11 @@ uv pip install -e .
 #### `scan` コマンド
 dbtプロジェクトをスキャンし、基本的なモデル情報を表示します。
 ```bash
-modaryn scan --manifest-path target/manifest.json --dialect bigquery --format terminal
+modaryn scan --project-path . --dialect bigquery --format terminal
 ```
 
 #### `score` コマンド
 複雑さと重要性に基づいてdbtモデルをスコアリングし、Zスコアに基づいたランキングを提供します。
 ```bash
-modaryn score --manifest-path target/manifest.json --dialect bigquery --config custom_weights.yml --format html --output modaryn_report.html
+modaryn score --project-path . --dialect bigquery --config custom_weights.yml --format html --output modaryn_report.html
 ```

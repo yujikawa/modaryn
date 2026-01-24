@@ -27,24 +27,24 @@ uv pip install -e .
 The `modaryn` CLI provides the following commands:
 
 *   **`modaryn scan`**: Scans a dbt project and displays basic model information.
-    *   `--manifest-path`, `-m`: Path to the dbt `manifest.json` file (default: `target/manifest.json`).
+    *   `--project-path`, `-p`: Path to the dbt project directory (default: `.`).
     *   `--dialect`, `-d`: The SQL dialect to use for parsing (default: `bigquery`).
     *   `--format`, `-f`: Output format (`terminal`, `markdown`).
     *   `--output`, `-o`: Path to write the output file (for `markdown` format).
     Example:
     ```bash
-    modaryn scan -m target/manifest.json -f markdown -o modaryn_scan_report.md
+    modaryn scan -p . -f markdown -o modaryn_scan_report.md
     ```
 
 *   **`modaryn score`**: Scores dbt models based on complexity and importance.
-    *   `--manifest-path`, `-m`: Path to the dbt `manifest.json` file (default: `target/manifest.json`).
+    *   `--project-path`, `-p`: Path to the dbt project directory (default: `.`).
     *   `--dialect`, `-d`: The SQL dialect to use for parsing (default: `bigquery`).
     *   `--config`, `-c`: Path to a custom weights configuration YAML file (e.g., `custom_weights.yml`).
     *   `--format`, `-f`: Output format (`terminal`, `markdown`, `html`).
     *   `--output`, `-o`: Path to write the output file.
     Example:
     ```bash
-    modaryn score -m target/manifest.json -c custom_weights.yml -f html -o modaryn_report.html
+    modaryn score -p . -c custom_weights.yml -f html -o modaryn_report.html
     ```
 
 ## Configuration
