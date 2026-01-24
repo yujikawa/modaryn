@@ -609,14 +609,26 @@ def test_scoring_and_ranking_with_compiled_sql(dbt_project_with_compiled_sql):
     assert project.get_model("model.modaryn_test_project.model_b").score == pytest.approx(-1.136, abs=0.01)
 
 
-def test_scan_command_with_project_path(dbt_project_with_compiled_sql):
-    result = runner.invoke(app, ["scan", "--project-path", str(dbt_project_with_compiled_sql)])
-    assert result.exit_code == 0
-    assert "Scanning dbt project:" in result.stdout
-    assert "Found 5 models." in result.stdout
-
 def test_score_command_with_project_path(dbt_project_with_compiled_sql):
     result = runner.invoke(app, ["score", "--project-path", str(dbt_project_with_compiled_sql)])
     assert result.exit_code == 0
     assert "Loading dbt project:" in result.stdout
     assert "Scoring project..." in result.stdout
+    # We can't reliably assert rich table content in stdout due to potential truncation/formatting.
+    # We'll rely on file output tests for content verification.
+
+def test_score_command_to_markdown_file(dbt_project_with_compiled_sql, tmp_path):
+    output_file = tmp_path / "report.md"
+    result = runner.invoke(app, ["score", "--project-path", str(dbt_project_with_compiled_sql), "-f", "markdown", "-o", str(output_file)])
+    assert result.exit_code == 0
+    assert "Report saved to" in result.stdout
+    assert output_file.name in result.stdout
+    assert output_file.exists()
+    content = output_file.read_text()
+    assert "# Modaryn Score and Scan Report" in content
+    assert "| Rank | Model Name | Score (Z-Score) | JOINs | CTEs | Conditionals | WHEREs | SQL Chars | Downstream Children |" in content
+    assert "model_d" in content
+    assert "complex_model" in content
+    assert "model_a" in content
+    assert "model_c" in content
+    assert "model_b" in content

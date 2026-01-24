@@ -5,21 +5,19 @@ from . import OutputGenerator
 
 
 class MarkdownOutput(OutputGenerator):
-    def generate_scan_report(self, project: DbtProject) -> Optional[str]:
+    def generate_report(self, project: DbtProject) -> Optional[str]:
         lines = [
-            "# Modaryn Scan Report",
+            "# Modaryn Score and Scan Report",
             "",
-            "| Model Name | JOINs | CTEs | Conditionals | WHEREs | SQL Chars | Downstream Children |",
-            "|------------|-------|------|--------------|--------|-----------|---------------------|",
+            "| Rank | Model Name | Score (Z-Score) | JOINs | CTEs | Conditionals | WHEREs | SQL Chars | Downstream Children |",
+            "|------|------------|-----------------|-------|------|--------------|--------|-----------|---------------------|",
         ]
-
         sorted_models = sorted(
             project.models.values(),
-            key=lambda m: m.downstream_model_count,
+            key=lambda m: m.score if m.score is not None else -1, # Handle None scores
             reverse=True,
         )
-
-        for model in sorted_models:
+        for i, model in enumerate(sorted_models):
             if model.complexity:
                 join_count = str(model.complexity.join_count)
                 cte_count = str(model.complexity.cte_count)
@@ -34,26 +32,7 @@ class MarkdownOutput(OutputGenerator):
                 sql_char_count = "N/A"
 
             lines.append(
-                f"| {model.model_name} | {join_count} | {cte_count} | {conditional_count} | {where_count} | {sql_char_count} | {model.downstream_model_count} |"
-            )
-
-        return "\n".join(lines)
-
-    def generate_score_report(self, project: DbtProject) -> Optional[str]:
-        lines = [
-            "# Modaryn Score Report",
-            "",
-            "| Rank | Model Name | Score (Z-Score) |",
-            "|------|------------|-----------------|",
-        ]
-        sorted_models = sorted(
-            project.models.values(),
-            key=lambda m: m.score,
-            reverse=True,
-        )
-        for i, model in enumerate(sorted_models):
-            lines.append(
-                f"| {i + 1} | {model.model_name} | {model.score:.2f} |"
+                f"| {i + 1} | {model.model_name} | {model.score:.2f} | {join_count} | {cte_count} | {conditional_count} | {where_count} | {sql_char_count} | {model.downstream_model_count} |"
             )
         return "\n".join(lines)
 

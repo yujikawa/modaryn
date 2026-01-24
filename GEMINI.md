@@ -24,19 +24,9 @@ uv pip install -e .
 
 ### Commands
 
-The `modaryn` CLI provides the following commands:
+The `modaryn` CLI provides the following command:
 
-*   **`modaryn scan`**: Scans a dbt project and displays basic model information.
-    *   `--project-path`, `-p`: Path to the dbt project directory (default: `.`).
-    *   `--dialect`, `-d`: The SQL dialect to use for parsing (default: `bigquery`).
-    *   `--format`, `-f`: Output format (`terminal`, `markdown`).
-    *   `--output`, `-o`: Path to write the output file (for `markdown` format).
-    Example:
-    ```bash
-    modaryn scan -p . -f markdown -o modaryn_scan_report.md
-    ```
-
-*   **`modaryn score`**: Scores dbt models based on complexity and importance.
+*   **`modaryn score`**: Analyzes and scores dbt models based on complexity and importance, displaying combined scan and score information.
     *   `--project-path`, `-p`: Path to the dbt project directory (default: `.`).
     *   `--dialect`, `-d`: The SQL dialect to use for parsing (default: `bigquery`).
     *   `--config`, `-c`: Path to a custom weights configuration YAML file (e.g., `custom_weights.yml`).
