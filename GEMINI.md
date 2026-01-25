@@ -1,63 +1,45 @@
-# Project Overview: modaryn
+# AI-DLC and Spec-Driven Development
 
-`modaryn` is a Python-based Command Line Interface (CLI) tool designed to analyze dbt (data build tool) projects. Its primary purpose is to score the complexity and structural importance of dbt models, helping data teams identify high-risk and high-impact data models within their projects.
+Kiro-style Spec Driven Development implementation on AI-DLC (AI Development Life Cycle)
 
-The tool leverages `sqlglot` for SQL parsing, `typer` for building the CLI, and `rich` for enhanced terminal output. It also uses `pyyaml` for configuration, `jinja2` for templating, and `plotly`, `numpy`, `pandas` for potential future data visualization and manipulation.
+## Project Context
 
-## Core Components:
+### Paths
+- Steering: `.kiro/steering/`
+- Specs: `.kiro/specs/`
 
-*   **Loaders:** Reads the dbt `manifest.json` file to construct an in-memory representation of the dbt project, including models, their SQL content, and dependencies.
-*   **Analyzers:**
-    *   `SqlComplexityAnalyzer`: Parses the raw SQL of dbt models to extract complexity metrics such as the number of `JOIN`s, Common Table Expressions (CTEs), conditional statements (`CASE`, `IF`), `WHERE` clauses, and the total character count of the SQL.
-*   **Scorers:** Calculates a combined Z-score for each dbt model based on its SQL complexity and structural importance (e.g., number of downstream models), enabling ranked identification of high-risk and high-impact models. This scoring uses configurable weights defined in a YAML file.
-*   **Outputs:** Provides various output formats for the analysis results, including terminal tables, Markdown, and HTML reports.
+### Steering vs Specification
 
-## Building and Running
+**Steering** (`.kiro/steering/`) - Guide AI with project-wide rules and context
+**Specs** (`.kiro/specs/`) - Formalize development process for individual features
 
-### Installation
+### Active Specifications
+- Check `.kiro/specs/` for active specifications
+- Use `/kiro:spec-status [feature-name]` to check progress
 
-The project uses `uv` for dependency management. To install dependencies:
+## Development Guidelines
+- Think in English, generate responses in Japanese. All Markdown content written to project files (e.g., requirements.md, design.md, tasks.md, research.md, validation reports) MUST be written in the target language configured for this specification (see spec.json.language).
 
-```bash
-uv pip install -e .
-```
+## Minimal Workflow
+- Phase 0 (optional): `/kiro:steering`, `/kiro:steering-custom`
+- Phase 1 (Specification):
+  - `/kiro:spec-init "description"`
+  - `/kiro:spec-requirements {feature}`
+  - `/kiro:validate-gap {feature}` (optional: for existing codebase)
+  - `/kiro:spec-design {feature} [-y]`
+  - `/kiro:validate-design {feature}` (optional: design review)
+  - `/kiro:spec-tasks {feature} [-y]`
+- Phase 2 (Implementation): `/kiro:spec-impl {feature} [tasks]`
+  - `/kiro:validate-impl {feature}` (optional: after implementation)
+- Progress check: `/kiro:spec-status {feature}` (use anytime)
 
-### Commands
+## Development Rules
+- 3-phase approval workflow: Requirements → Design → Tasks → Implementation
+- Human review required each phase; use `-y` only for intentional fast-track
+- Keep steering current and verify alignment with `/kiro:spec-status`
+- Follow the user's instructions precisely, and within that scope act autonomously: gather the necessary context and complete the requested work end-to-end in this run, asking questions only when essential information is missing or the instructions are critically ambiguous.
 
-The `modaryn` CLI provides the following command:
-
-*   **`modaryn score`**: Analyzes and scores dbt models based on complexity and importance, displaying combined scan and score information.
-    *   `--project-path`, `-p`: Path to the dbt project directory (default: `.`).
-    *   `--dialect`, `-d`: The SQL dialect to use for parsing (default: `bigquery`).
-    *   `--config`, `-c`: Path to a custom weights configuration YAML file (e.g., `custom_weights.yml`).
-    *   `--format`, `-f`: Output format (`terminal`, `markdown`, `html`).
-    *   `--output`, `-o`: Path to write the output file.
-    Example:
-    ```bash
-    modaryn score -p . -c custom_weights.yml -f html -o modaryn_report.html
-    ```
-
-## Configuration
-
-Default scoring weights are defined in `modaryn/config/default.yml`. Users can provide a custom YAML file (e.g., `custom_weights.yml`) to override these defaults. The custom file only needs to specify the weights it intends to change.
-
-Example `custom_weights.yml`:
-```yaml
-sql_complexity:
-  join_count: 3.0
-  cte_count: 2.0
-  conditional_count: 1.0
-  where_count: 0.5
-  sql_char_count: 0.01
-importance:
-  downstream_model_count: 1.5
-```
-
-## Development Conventions
-
-*   **Language:** Python 3.9+
-*   **CLI Framework:** `typer`
-*   **SQL Parsing:** `sqlglot`
-*   **Data Structures:** Uses `dataclasses` for representing dbt models and projects.
-*   **Dependency Management:** `uv`
-*   **Project Structure:** Modular, with separate directories for analyzers, loaders, outputs, and scorers.
+## Steering Configuration
+- Load entire `.kiro/steering/` as project memory
+- Default files: `product.md`, `tech.md`, `structure.md`
+- Custom files are supported (managed via `/kiro:steering-custom`)
