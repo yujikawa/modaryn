@@ -21,6 +21,8 @@ Analyzes and scores dbt models based on complexity and importance, displaying co
 modaryn score --project-path . --dialect bigquery --config custom_weights.yml --format html --output modaryn_report.html
 ```
 
+![modaryn](./docs/assets/result.png)
+
 ---
 
 ### 概要 (Overview)
