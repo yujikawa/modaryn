@@ -632,3 +632,18 @@ def test_score_command_to_markdown_file(dbt_project_with_compiled_sql, tmp_path)
     assert "model_a" in content
     assert "model_c" in content
     assert "model_b" in content
+
+
+from unittest.mock import patch
+
+def test_naked_invoke_shows_logo():
+    with patch("modaryn.cli.display_logo") as mock_display_logo:
+        result = runner.invoke(app, [])
+        assert result.exit_code == 0
+        mock_display_logo.assert_called_once()
+
+def test_invoke_with_command_does_not_show_logo(dbt_project_with_compiled_sql):
+    with patch("modaryn.cli.display_logo") as mock_display_logo:
+        result = runner.invoke(app, ["score", "--project-path", str(dbt_project_with_compiled_sql)])
+        assert result.exit_code == 0
+        mock_display_logo.assert_not_called()

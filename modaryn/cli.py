@@ -9,6 +9,7 @@ from modaryn.scorers.score import Scorer
 from modaryn.outputs.terminal import TerminalOutput
 from modaryn.outputs.markdown import MarkdownOutput
 from modaryn.outputs.html import HtmlOutput
+from modaryn.outputs.logo import display_logo
 from modaryn.outputs import OutputGenerator # Import the base class for type hinting
 
 
@@ -21,12 +22,13 @@ class OutputFormat(str, Enum):
 app = typer.Typer(help="A CLI to analyze dbt projects and score model complexity.")
 console = Console() # Keep for general messages
 
-@app.callback()
-def main():
+@app.callback(invoke_without_command=True)
+def main(ctx: typer.Context):
     """
     modaryn analyzes dbt projects to score model complexity and structural importance.
     """
-    pass
+    if ctx.invoked_subcommand is None:
+        display_logo()
 
 
 @app.command()
