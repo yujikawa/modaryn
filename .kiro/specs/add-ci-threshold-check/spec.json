@@ -1,7 +1,7 @@
 {
   "feature_name": "add-ci-threshold-check",
   "created_at": "2026-01-31T02:05:12.286828Z",
-  "updated_at": "2026-01-31T02:24:08.363431Z",
+  "updated_at": "2026-01-31T06:00:00.000000Z",
   "language": "ja",
   "phase": "tasks-generated",
   "approvals": {
@@ -15,7 +15,7 @@
     },
     "tasks": {
       "generated": true,
-      "approved": false
+      "approved": true
     }
   },
   "ready_for_implementation": false

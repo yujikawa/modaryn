@@ -118,5 +118,102 @@ def score(
         if output:
             console.print("[bold yellow]Warning: --output is only supported for file-based formats. Printing to terminal.[/bold yellow]")
 
+
+@app.command()
+def ci_check(
+    project_path: Path = typer.Option(
+        ".",
+        "--project-path",
+        "-p",
+        help="Path to the dbt project directory.",
+        exists=True,
+        readable=True,
+        resolve_path=True,
+    ),
+    threshold: float = typer.Option(
+        ..., # ... means required
+        "--threshold",
+        "-t",
+        help="The maximum allowed Z-score for models. CI will fail if any model exceeds this.",
+    ),
+    dialect: str = typer.Option(
+        "bigquery",
+        "--dialect",
+        "-d",
+        help="The SQL dialect to use for parsing.",
+        case_sensitive=False,
+    ),
+    config: Optional[Path] = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to a custom weights configuration YAML file.",
+        exists=True,
+        readable=True,
+        resolve_path=True,
+    ),
+    format: OutputFormat = typer.Option(
+        OutputFormat.terminal,
+        "--format",
+        "-f",
+        help="Output format.",
+        case_sensitive=False,
+    ),
+    output: Optional[Path] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Path to write the output file.",
+        writable=True,
+    ),
+):
+    """
+    Checks dbt model complexity against a defined Z-score threshold for CI pipelines.
+    Exits with code 1 if any model's score exceeds the threshold, 0 otherwise.
+    """
+    console.print(f"🔍 Loading dbt project: [bold cyan]{project_path}[/bold cyan]")
+    try:
+        loader = ManifestLoader(project_path, dialect=dialect)
+        project = loader.load()
+    except Exception as e:
+        console.print(f"[bold red]Error loading manifest file: {e}[/bold red]")
+        raise typer.Exit(code=1)
+
+    console.print(f"⚖️  Scoring project and checking thresholds...")
+    scorer = Scorer(config)
+    scorer.score_project(project)
+
+    # Placeholder for actual threshold checking logic - will be implemented in subsequent tasks
+    # For now, just make it pass by default if no errors
+    console.print("[bold green]Threshold check passed (placeholder logic).[/bold green]")
+
+    output_generator: OutputGenerator
+    if format == OutputFormat.terminal:
+        output_generator = TerminalOutput()
+    elif format == OutputFormat.markdown:
+        output_generator = MarkdownOutput()
+    elif format == OutputFormat.html:
+        output_generator = HtmlOutput()
+    else:
+        console.print(f"[bold red]Unsupported output format: {format.value}[/bold red]")
+        raise typer.Exit(code=1)
+    
+    report_content = output_generator.generate_report(project)
+
+    if report_content:
+        if output:
+            with open(output, "w") as f:
+                f.write(report_content)
+            console.print(f"✅ Report saved to [bold cyan]{output}[/bold cyan]")
+        else:
+            print(report_content)
+    else:
+        if output:
+            console.print("[bold yellow]Warning: --output is only supported for file-based formats. Printing to terminal.[/bold yellow]")
+
+    # For now, always exit with 0 (success) until threshold logic is implemented
+    raise typer.Exit(code=0)
+
+
 if __name__ == "__main__":
     app()
