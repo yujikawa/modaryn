@@ -1,132 +1,93 @@
 # 技術設計書
 
 ## 概要
-この機能は、`modaryn` CLIが引数やオプションなしで実行されたときに、ブランドのASCIIアートロゴを表示する機能を提供する。これにより、ユーザーはツールが正しくインストールされ、実行可能であることを視覚的に確認できる。既存のCLIエントリーポイントへの単純な機能追加であり、主要なロジックには影響しない。
+この機能は、`modaryn` CLIを引数なしで実行した際に、ASCIIアートのロゴを表示します。これにより、ユーザーはツールが正しくインストールされていることを視覚的に確認できます。この変更は主にCLIのエントリポイントに影響を与え、表示ロジックは専用のモジュールに分離されます。
 
 ### ゴール
-- 引数なしで`modaryn`コマンドが実行された場合に、ASCIIロゴを表示する。
-- ロゴ表示は既存のコマンドの機能を妨げない。
+- 引数なしの`modaryn`実行時にロゴを表示する。
+- ロゴ表示ロジックを既存のコマンド機能から分離する。
+- ロゴのコンテンツを管理しやすくするため、テキストファイルとして外部化する。
 
-### ノンゴール
-- ロゴの動的な生成やカスタマイズ機能。
-- ロゴ以外の追加情報の表示。
+### 非ゴール
+- ロゴのデザイン自体の作成。
+- ロゴ表示以外のCLIの動作変更。
 
 ## アーキテクチャ
 
 ### 既存アーキテクチャの分析
-`modaryn`は`typer`を利用した単一のCLIアプリケーションである。エントリーポイントは`modaryn/cli.py`にあり、`@app.callback()`を持つ`main`関数が初期処理を担う。この既存の構造を拡張して、引数がない場合の処理分岐を追加する。
+`modaryn`は`typer`ライブラリ上に構築されたCLIアプリケーションです。`modaryn/cli.py`がエントリポイントとして機能し、`@app.callback()`デコレータを持つ`main`関数がすべてのコマンド実行前に呼び出されます。この既存の構造が、新しいロゴ表示ロジックの注入ポイントとして最適です。
 
 ### アーキテクチャパターンと境界マップ
-この変更は既存のCLIレイヤー内での変更に限定される。新しいコンポーネントは表示ロジックの一部として`outputs`レイヤーに追加され、プロジェクトの構造原則を維持する。
+この変更は非常に限定的であり、既存のアーキテクチャに準拠します。新しい表示ロジックを`modaryn/outputs`レイヤーに追加し、プレゼンテーションに関する関心事を分離するという既存のパターンに従います。
 
 ```mermaid
 graph TD
-    subgraph CLI Layer
-        A[modaryn/cli.py]
+    subgraph CLI Entrypoint
+        A[cli.py: main(ctx)]
     end
     subgraph Output Layer
-        B[modaryn/outputs/logo.py]
-        C[rich.console.Console]
+        B[outputs/logo.py: display_logo()]
+        C[assets/logo.txt]
     end
-    A -- invokes --> B
-    B -- uses --> C
+
+    A -- "if ctx.invoked_subcommand is None" --> B
+    B -- "reads" --> C
 ```
 
 **アーキテクチャ統合**:
-- **選択したパターン**: 既存のCLIコールバックパターンの拡張。
-- **ドメイン/機能の境界**: `cli.py`が呼び出しの判断を行い、`outputs/logo.py`が表示を担当することで、関心を分離する。
-- **ステアリングへの準拠**: `outputs`ディレクトリに表示関連のロジックを配置する既存のパターンに従う。
+- **選択したパターン**: 既存のレイヤードアーキテクチャを拡張します。
+- **ドメイン/フィーチャー境界**: `cli.py`が呼び出しのコンテキストを判断し、`outputs/logo.py`が表示を担当することで、関心事を分離します。
+- **ステアリング準拠**: `modaryn/outputs`に出力関連のロジックを配置する`structure.md`の原則に準拠しています。
+
+### 技術スタック
+
+| レイヤー | 選択 / バージョン | 機能における役割 | ノート |
+|---|---|---|---|
+| Frontend / CLI | Typer | コマンドライン引数の解釈とコールバックのトリガー | `typer.Context`を使用して呼び出し状態を判断 |
+| Frontend / CLI | Rich | ターミナルへのスタイリングされたロゴの出力 | 既存の依存関係を活用 |
 
 ## 要求事項トレーサビリティ
 
 | 要求事項 | 概要 | コンポーネント |
 |---|---|---|
-| 1 | コマンド単体実行時のロゴ表示 | `modaryn.cli.py` |
-| 2 | ロゴのフォーマットと表示品質 | `modaryn.outputs.logo.py` |
+| 1.1 | 引数なしでロゴ表示 | `cli.py`, `outputs/logo.py` |
+| 1.2 | 引数ありでロゴ非表示 | `cli.py` |
+| 2.1 | ヘルプ表示を優先 | `cli.py` (Typerのデフォルト動作) |
+| 3.1 | ロゴを外部ファイルで定義 | `assets/logo.txt`, `outputs/logo.py` |
+| 3.2 | richを使用してスタイリング | `outputs/logo.py` |
 
 ## コンポーネントとインターフェース
 
-### CLIレイヤー
+### `cli` レイヤー
 
-#### `modaryn.cli.py` (修正)
+#### `modaryn/cli.py`
+- **責務**: CLIのエントリポイントとして、引数を解釈し、ロゴを表示するか、または指定されたサブコマンドを実行するかを決定する。
+- **変更点**:
+  - `main`関数が`ctx: typer.Context`を受け取るように変更。
+  - `ctx.invoked_subcommand`が`None`の場合に`display_logo()`を呼び出すロジックを追加。
 
-| フィールド | 詳細 |
-|---|---|
-| 意図 | CLIのエントリーポイントとして機能し、引数なしの呼び出しを検知してロゴ表示機能を呼び出す。 |
-| 要求事項 | 1 |
+### `outputs` レイヤー
 
-**依存関係**:
-- **アウトバウンド**: `modaryn.outputs.logo.display_logo` — ロゴ表示のため (クリティカリティ: P0)
+#### `modaryn/outputs/logo.py` (新規)
+- **責務**: ロゴの表示ロジックをカプセル化する。
+- **インターフェース**:
+  ```python
+  def display_logo():
+      """
+      アセットファイルからASCIIロゴを読み込み、コンソールに表示する。
+      """
+      # 実装の詳細
+  ```
 
-**コントラクト**: サービスインターフェース
+### `assets` レイヤー
 
-##### サービスインターフェース
-`typer`のコールバック機構を修正する。
-
-```python
-# 修正前
-app = typer.Typer(help="...")
-
-@app.callback()
-def main():
-    ...
-```
-
-```python
-# 修正後
-import typer
-from modaryn.outputs.logo import display_logo
-
-app = typer.Typer(help="...", invoke_without_command=True)
-
-@app.callback()
-def main(ctx: typer.Context):
-    """
-    modaryn analyzes dbt projects to score model complexity and structural importance.
-    """
-    if ctx.invoked_subcommand is None:
-        display_logo()
-        raise typer.Exit()
-```
-
-### Outputレイヤー
-
-#### `modaryn.outputs.logo.py` (新規)
-
-| フィールド | 詳細 |
-|---|---|
-| 意図 | ASCIIロゴの定義と、それをコンソールに表示する責務を担う。 |
-| 要求事項 | 2 |
-
-**依存関係**:
-- **インバウンド**: `modaryn.cli.py` — ロゴ表示のため (クリティカリティ: P0)
-- **外部**: `rich.console.Console` — コンソールへの出力のため (クリティカリティ: P0)
-
-**コントラクト**: サービスインターフェース
-
-##### サービスインターフェース
-```python
-from rich.console import Console
-
-LOGO = """
- (ここにASCIIアートロゴが入る) 
-"""
-
-def display_logo():
-    """ASCIIアートロゴをコンソールに表示する。"""
-    console = Console()
-    console.print(LOGO, style="bold blue") # スタイルは仮
-```
-- **事前条件**: なし
-- **事後条件**: ロゴが標準出力に表示される。
-
-**実装に関する注意**:
-- **ロゴの内容**: `modaryn`という小文字を含み、ターミナルで崩れないように設計されたASCIIアートを`LOGO`定数に定義する。
-- **表示品質**: `rich`ライブラリを使用することで、ターミナル幅に応じた表示崩れの防止や、色の適用が容易になる。
-
-## エラーハンドリング
-`typer.Exit()`を呼び出すことで、ロゴ表示後に他のコマンドが実行されることなく、正常にプロセスを終了させる。
+#### `modaryn/assets/logo.txt` (新規)
+- **責務**: 表示されるASCIIアートのロゴ文字列を保持する。
+- **フォーマット**: プレーンテキスト。
 
 ## テスト戦略
-- **ユニットテスト**: `display_logo`関数が、与えられた`Console`オブジェクトの`print`メソッドを特定のロゴ文字列で呼び出すことを確認する。
-- **統合テスト**: `typer`のテストランナー（または`subprocess`）を使用して、`modaryn`コマンドを引数なしで実行した際に、標準出力にロゴが含まれていることをアサートする。
+- **ユニットテスト**:
+  - `outputs/logo.py`の`display_logo`関数が、`logo.txt`の内容を正しく読み込み、`rich.print`を呼び出すことを検証する（`print`はモックする）。
+- **統合テスト**:
+  - `typer`の`CliRunner`を使用して、`modaryn`を引数なしで実行した場合にロゴが表示される（標準出力をキャプチャして検証）。
+  - `modaryn score`のように引数付きで実行した場合に、ロゴが表示*されない*ことを検証する。
