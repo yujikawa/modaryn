@@ -1,27 +1,22 @@
 # 実装計画
 
-- [ ] 1. (P) ロゴ表示機能の基盤をセットアップする
-  - `modaryn/assets` ディレクトリを作成する。
-  - `modaryn/assets/logo.txt` というプレースホルダーのロゴファイルを配置する。
-  - `modaryn/outputs/logo.py` という空の表示ロジック用モジュールを作成する。
-  - _Requirements: 3.1_
+- [x] 1. (P) CLIアプリケーションのバージョンを初期化する
+  - `modaryn/cli.py`の`typer.Typer`インスタンスの初期化時に`version="0.1.0"`を追加する。
+  - _Requirements: 4.1_
 
-- [ ] 2. (P) ロゴ表示ロジックを実装する
-  - `modaryn/outputs/logo.py` に `display_logo` 関数を実装する。
-  - この関数は `modaryn/assets/logo.txt` からロゴのテキストを読み込む。
-  - `rich` ライブラリを使用して、読み込んだテキストをコンソールにスタイリングして出力する。
-  - _Requirements: 3.1, 3.2_
+- [x] 2. (P) ロゴとバージョン表示ロジックを実装する
+  - `modaryn/outputs/logo.py`内の関数名を`display_logo_and_version`に変更する。
+  - `display_logo_and_version`関数に`version_string: str`パラメータを追加する。
+  - `logo.txt`の内容を`rich`で出力した後、新しい行にバージョン文字列を出力する。
+  - _Requirements: 3.1, 3.2, 4.1_
 
-- [ ] 3. CLIにロゴ表示ロジックを統合する
-  - `modaryn/cli.py` を修正する。
-  - `display_logo` 関数をインポートする。
-  - `main` コールバック関数が `typer.Context` を受け取るようにシグネチャを変更する。
-  - `ctx.invoked_subcommand` が `None` の場合にのみ `display_logo` を呼び出す条件ロジックを追加する。
-  - _Requirements: 1.1, 1.2, 2.1_
+- [x] 3. CLIにロゴとバージョン表示ロジックを統合する
+  - `modaryn/cli.py`を修正する。
+  - `main`コールバック関数内で、`display_logo()`の呼び出しを`display_logo_and_version(app.info.version)`に変更する。
+  - _Requirements: 1.1, 1.2, 2.1, 4.1_
 
-- [ ] 4. テストを実装する
-  - `display_logo` 関数のためのユニットテストを作成する。ファイル読み込みと `print` の呼び出しをモックして検証する。
-  - `typer.testing.CliRunner` を使用した統合テストを作成する。
-    - 引数なしで `modaryn` を実行した際にロゴが出力されることを確認する。
-    - `score` などのサブコマンド付きで実行した際にロゴが出力されないことを確認する。
-  - _Requirements: 1.1, 1.2, 2.1, 3.1, 3.2_
+- [x] 4. テストを更新する
+  - `tests/test_logo.py`内のユニットテストを`display_logo_and_version`関数がバージョン文字列を正しく受け取り、ロゴとともに表示することを検証するように更新する。
+  - `tests/test_cli.py`内の統合テストを、引数なしで`modaryn`を実行した際にロゴとバージョンが表示されることを検証するように更新する。
+  - `score`などのサブコマンド付きで実行した際にロゴとバージョンが表示されないことを検証する統合テストを更新する。
+  - _Requirements: 1.1, 1.2, 2.1, 3.1, 3.2, 4.1_
