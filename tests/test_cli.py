@@ -637,13 +637,13 @@ def test_score_command_to_markdown_file(dbt_project_with_compiled_sql, tmp_path)
 from unittest.mock import patch
 
 def test_naked_invoke_shows_logo():
-    with patch("modaryn.cli.display_logo") as mock_display_logo:
+    with patch("modaryn.cli.display_logo_and_version") as mock_display_logo_and_version:
         result = runner.invoke(app, [])
         assert result.exit_code == 0
-        mock_display_logo.assert_called_once()
+        mock_display_logo_and_version.assert_called_once_with(app.info.version)
 
 def test_invoke_with_command_does_not_show_logo(dbt_project_with_compiled_sql):
-    with patch("modaryn.cli.display_logo") as mock_display_logo:
+    with patch("modaryn.cli.display_logo_and_version") as mock_display_logo_and_version:
         result = runner.invoke(app, ["score", "--project-path", str(dbt_project_with_compiled_sql)])
         assert result.exit_code == 0
-        mock_display_logo.assert_not_called()
+        mock_display_logo_and_version.assert_not_called()

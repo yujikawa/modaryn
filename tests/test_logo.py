@@ -34,8 +34,12 @@ def mock_logo_file(tmp_path):
     with patch("modaryn.outputs.logo.__file__", str(mock_logo_py_path)):
         yield logo_file # Yield the actual logo file path created in tmp_path
 
-def test_display_logo_prints_logo_from_file(mock_console, mock_logo_file):
-    from modaryn.outputs.logo import display_logo 
+def test_display_logo_and_version_prints_logo_and_version(mock_console, mock_logo_file):
+    from modaryn.outputs.logo import display_logo_and_version 
 
-    display_logo()
-    mock_console.print.assert_called_once_with(mock_logo_file.read_text())
+    version_string = "1.2.3"
+    display_logo_and_version(version_string)
+    
+    # Assert that console.print was called with the logo content and then the version
+    mock_console.print.assert_any_call(mock_logo_file.read_text())
+    mock_console.print.assert_any_call(f"[bold cyan]Version: {version_string}[/bold cyan]")

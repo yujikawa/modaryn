@@ -1,7 +1,7 @@
 from rich.console import Console
 from pathlib import Path
 
-def display_logo():
+def display_logo_and_version(version_string: str):
     console = Console()
     
     # Dynamically find the project root from the current file's location
@@ -14,6 +14,8 @@ def display_logo():
     if logo_path.exists():
         logo_content = logo_path.read_text()
         console.print(logo_content, style="bold cyan")
+        console.print("Modaryn analyzes dbt projects to score model complexity and structural importance,helping teams identify high-risk and high-impact data models.")
+        console.print(f"[bold yellow]Version: {version_string}[/bold yellow]")
     else:
         # Fallback or error handling if logo.txt is not found
         console.print("[bold red]Error: Logo file not found.[/bold red]")
