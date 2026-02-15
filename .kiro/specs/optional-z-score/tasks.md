@@ -48,7 +48,7 @@
   - _Requirements: 2.1, 3.1_
 
 - [ ] 5. Add Unit and Integration Tests (P)
-- [ ] 5.1 (P) Add unit tests for `Scorer`
+- [x] 5.1 (P) Add unit tests for `Scorer`
   - Test `score_project` with `apply_zscore=True` to verify `model.score` (z-score) population.
   - Test `score_project` with `apply_zscore=False` to verify `model.raw_score` population and `model.score` (z-score) is `0.0`.
   - _Requirements: 1.1, 2.1_

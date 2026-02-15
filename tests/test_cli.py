@@ -222,11 +222,11 @@ def test_ci_check_command_is_listed_in_help():
     assert result.exit_code == 0
     assert "ci-check" in result.stdout
 
-def test_ci_check_command_fails_on_threshold_exceeded(dbt_project_with_compiled_sql):
+def test_ci_check_command_fails_on_zscore_threshold_exceeded(dbt_project_with_compiled_sql):
     # The highest score is int_customer_order_summary (1.69), fct_customer_product_affinity (0.97)
     # Let's set a threshold that int_customer_order_summary will exceed (e.g., 1.0)
     test_threshold = 1.0
-    result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold)])
+    result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold), "--apply-zscore"])
     
     assert result.exit_code == 1
     assert "Threshold exceeded by 1 models" in result.stdout
@@ -237,14 +237,45 @@ def test_ci_check_command_fails_on_threshold_exceeded(dbt_project_with_compiled_
     assert "Total models checked: 6" in result.stdout
     assert f"Threshold: {test_threshold:.3f}" in result.stdout
 
-def test_ci_check_command_passes_on_threshold_not_exceeded(dbt_project_with_compiled_sql):
+def test_ci_check_command_passes_on_zscore_threshold_not_exceeded(dbt_project_with_compiled_sql):
     # Set a threshold higher than the highest score (int_customer_order_summary: 1.69)
     test_threshold = 1.7
-    result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold)])
+    result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold), "--apply-zscore"])
     
     assert result.exit_code == 0
     assert "All models are within the defined threshold." in result.stdout
     assert "Threshold exceeded" not in result.stdout # Ensure no failure message
+    assert "--- CI Check Summary ---" in result.stdout
+    assert "Status: PASSED" in result.stdout
+    assert "All models are within the defined threshold." in result.stdout
+    assert "Total models checked: 6" in result.stdout
+    assert f"Threshold: {test_threshold:.3f}" in result.stdout
+
+
+def test_ci_check_command_fails_on_threshold_exceeded(dbt_project_with_compiled_sql):
+    # The highest raw score is int_customer_order_summary (21.76)
+    # Let's set a threshold that int_customer_order_summary will exceed (e.g., 20.0)
+    test_threshold = 20.0
+    result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold)])
+    
+    assert result.exit_code == 1
+    assert "Threshold exceeded by 1 models" in result.stdout
+    assert "int_customer_order_summary" in result.stdout
+    assert "--- CI Check Summary ---" in result.stdout
+    assert "Status: FAILED" in result.stdout
+    assert "1 models exceeded threshold." in result.stdout
+    assert "Total models checked: 6" in result.stdout
+    assert f"Threshold: {test_threshold:.3f}" in result.stdout
+
+
+def test_ci_check_command_passes_on_threshold_not_exceeded(dbt_project_with_compiled_sql):
+    # Set a threshold higher than the highest raw score (int_customer_order_summary: 21.76)
+    test_threshold = 22.0
+    result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold)])
+    
+    assert result.exit_code == 0
+    assert "All models are within the defined threshold." in result.stdout
+    assert "Threshold exceeded" not in result.stdout
     assert "--- CI Check Summary ---" in result.stdout
     assert "Status: PASSED" in result.stdout
     assert "All models are within the defined threshold." in result.stdout
@@ -397,3 +428,4 @@ def test_terminal_output_without_zscore(sample_project_for_output_test: DbtProje
         # model1 has lower raw_score (15.5)
         assert "model1" in output.splitlines()[5]
         assert "15.50" in output.splitlines()[5]
+
