@@ -15,3 +15,4 @@ build/
 *.duckdb
 
 logs
+*.log
