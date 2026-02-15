@@ -15,6 +15,7 @@ class DbtModel:
     parents: Dict[str, "DbtModel"] = field(default_factory=dict)
     children: Dict[str, "DbtModel"] = field(default_factory=dict)
     complexity: Optional[SqlComplexityResult] = None
+    raw_score: float = 0.0
     score: float = 0.0
 
     @property

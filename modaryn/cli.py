@@ -63,6 +63,12 @@ def score(
         readable=True,
         resolve_path=True,
     ),
+    apply_zscore: bool = typer.Option(
+        False,
+        "--apply-zscore",
+        "-z",
+        help="Apply Z-score transformation to model scores.",
+    ),
     format: OutputFormat = typer.Option(
         OutputFormat.terminal,
         "--format",
@@ -91,7 +97,7 @@ def score(
 
     console.print(f"⚖️  Scoring project...")
     scorer = Scorer(config)
-    scorer.score_project(project)
+    scorer.score_project(project, apply_zscore=apply_zscore)
 
     output_generator: OutputGenerator
     if format == OutputFormat.terminal:
@@ -105,7 +111,7 @@ def score(
         console.print(f"[bold red]Unsupported output format: {format.value}[/bold red]")
         raise typer.Exit(code=1)
     
-    report_content = output_generator.generate_report(project)
+    report_content = output_generator.generate_report(project, apply_zscore=apply_zscore)
 
     if report_content:
         if output:
@@ -181,7 +187,7 @@ def ci_check(
 
     console.print(f"⚖️  Scoring project and checking thresholds...")
     scorer = Scorer(config)
-    scorer.score_project(project)
+    scorer.score_project(project, apply_zscore=True) # Always use Z-score for CI check
 
     problematic_models = [model for model in project.models.values() if model.score > threshold]
 
@@ -206,7 +212,7 @@ def ci_check(
         console.print(f"[bold red]Unsupported output format: {format.value}[/bold red]")
         raise typer.Exit(code=1)
     
-    report_content = output_generator.generate_report(project, problematic_models, threshold)
+    report_content = output_generator.generate_report(project, problematic_models, threshold, apply_zscore=True)
 
     if report_content:
         if output:
