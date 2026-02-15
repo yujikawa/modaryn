@@ -48,6 +48,9 @@ importance:
 
 Adjust these values to emphasize or de-emphasize certain aspects of complexity or importance.
 
+##### Score Statistics
+The score commands will now output statistics (mean, median, standard deviation) of the calculated scores in the chosen output format. This provides a better understanding of the distribution of scores across your models.
+
 ![modaryn](./docs/assets/result.png)
 
 #### `ci-check` command

@@ -111,7 +111,7 @@ def score(
         console.print(f"[bold red]Unsupported output format: {format.value}[/bold red]")
         raise typer.Exit(code=1)
     
-    report_content = output_generator.generate_report(project, apply_zscore=apply_zscore)
+    report_content = output_generator.generate_report(project, apply_zscore=apply_zscore, statistics=project.statistics)
 
     if report_content:
         if output:
@@ -226,7 +226,7 @@ def ci_check(
         console.print(f"[bold red]Unsupported output format: {format.value}[/bold red]")
         raise typer.Exit(code=1)
     
-    report_content = output_generator.generate_report(project, problematic_models, threshold, apply_zscore=apply_zscore)
+    report_content = output_generator.generate_report(project, problematic_models, threshold, apply_zscore=apply_zscore, statistics=project.statistics)
 
     if report_content:
         if output:

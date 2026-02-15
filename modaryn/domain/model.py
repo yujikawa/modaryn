@@ -2,7 +2,17 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Dict, Optional
 
+import numpy as np
+
+
 from modaryn.analyzers.sql_complexity import SqlComplexityResult
+
+
+@dataclass
+class ScoreStatistics:
+    mean: float = 0.0
+    median: float = 0.0
+    std_dev: float = 0.0
 
 
 @dataclass
@@ -26,6 +36,7 @@ class DbtModel:
 @dataclass
 class DbtProject:
     models: Dict[str, DbtModel] = field(default_factory=dict)
+    statistics: Optional[ScoreStatistics] = None
 
     def __post_init__(self):
         self._build_dag()

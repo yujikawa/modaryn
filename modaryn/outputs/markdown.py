@@ -1,11 +1,11 @@
 from typing import Optional, List
 
-from modaryn.domain.model import DbtProject, DbtModel
+from modaryn.domain.model import DbtProject, DbtModel, ScoreStatistics
 from . import OutputGenerator
 
 
 class MarkdownOutput(OutputGenerator):
-    def generate_report(self, project: DbtProject, problematic_models: Optional[List[DbtModel]] = None, threshold: Optional[float] = None, apply_zscore: bool = False) -> Optional[str]:
+    def generate_report(self, project: DbtProject, problematic_models: Optional[List[DbtModel]] = None, threshold: Optional[float] = None, apply_zscore: bool = False, statistics: Optional[ScoreStatistics] = None) -> Optional[str]:
         score_header = "Score (Z-Score)" if apply_zscore else "Score (Raw)"
         sort_key = (lambda m: m.score) if apply_zscore else (lambda m: m.raw_score)
         score_attr = "score" if apply_zscore else "raw_score"
@@ -39,4 +39,20 @@ class MarkdownOutput(OutputGenerator):
             lines.append(
                 f"| {i + 1} | {model.model_name} | {score_to_display:.2f} | {join_count} | {cte_count} | {conditional_count} | {where_count} | {sql_char_count} | {model.downstream_model_count} |"
             )
+        
+        if statistics:
+            lines.append("\n### Score Statistics")
+            lines.append(f"- Mean: {statistics.mean:.3f}")
+            lines.append(f"- Median: {statistics.median:.3f}")
+            lines.append(f"- Standard Deviation: {statistics.std_dev:.3f}")
+
+        if threshold is not None:
+            lines.append("\n### CI Check Summary")
+            if problematic_models:
+                lines.append(f"**Status: FAILED** - {len(problematic_models)} models exceeded threshold.")
+            else:
+                lines.append("**Status: PASSED** - All models are within the defined threshold.")
+            lines.append(f"Total models checked: {len(project.models)}")
+            lines.append(f"Threshold: {threshold:.3f}")
+        
         return "\n".join(lines)

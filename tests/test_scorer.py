@@ -132,3 +132,48 @@ def test_score_project_handles_zero_std_dev():
     assert project.models["model.test.model_b"].raw_score == 1.0
     assert project.models["model.test.model_b"].score == 0.0
 
+
+def test_score_project_calculates_statistics():
+    scorer = Scorer()
+    project = create_dummy_project({
+        "model.test.model_1": {"model_name": "model_1", "join_count": 1}, # raw score = 1
+        "model.test.model_2": {"model_name": "model_2", "join_count": 2}, # raw score = 2
+        "model.test.model_3": {"model_name": "model_3", "join_count": 3}, # raw score = 3
+        "model.test.model_4": {"model_name": "model_4", "join_count": 4}, # raw score = 4
+        "model.test.model_5": {"model_name": "model_5", "join_count": 5}, # raw score = 5
+    })
+    
+    scorer.weights = {
+        "sql_complexity": { "join_count": 1.0 }, "importance": { "downstream_model_count": 1.0 }
+    }
+
+    scorer.score_project(project, apply_zscore=False) # Calculate raw scores and statistics
+
+    assert project.statistics is not None
+    # Raw scores: [1.0, 2.0, 3.0, 4.0, 5.0]
+    # Mean: (1+2+3+4+5)/5 = 3.0
+    # Median: 3.0
+    # Std Dev: np.std([1,2,3,4,5]) = 1.4142135623730951
+
+    assert pytest.approx(project.statistics.mean, abs=1e-3) == 3.0
+    assert pytest.approx(project.statistics.median, abs=1e-3) == 3.0
+    assert pytest.approx(project.statistics.std_dev, abs=1e-3) == 1.414
+
+    # Test with empty project
+    empty_project = DbtProject()
+    scorer.score_project(empty_project)
+    assert empty_project.statistics is None
+
+    # Test with single model
+    single_model_project = create_dummy_project({
+        "model.test.single": {"model_name": "single", "join_count": 10},
+    })
+    scorer.weights = {
+        "sql_complexity": { "join_count": 1.0 }, "importance": { "downstream_model_count": 1.0 }
+    }
+    scorer.score_project(single_model_project)
+    assert single_model_project.statistics is not None
+    assert pytest.approx(single_model_project.statistics.mean, abs=1e-3) == 10.0
+    assert pytest.approx(single_model_project.statistics.median, abs=1e-3) == 10.0
+    assert pytest.approx(single_model_project.statistics.std_dev, abs=1e-3) == 0.0
+

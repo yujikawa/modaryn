@@ -8,7 +8,7 @@ from unittest.mock import patch, MagicMock
 from modaryn.loaders.manifest import ManifestLoader
 from modaryn.scorers.score import Scorer
 from modaryn.outputs.terminal import TerminalOutput
-from modaryn.domain.model import DbtProject, DbtModel
+from modaryn.domain.model import DbtProject, DbtModel, ScoreStatistics # Added ScoreStatistics
 from modaryn.analyzers.sql_complexity import SqlComplexityResult
 from rich.console import Console # Added this import
 
@@ -328,6 +328,11 @@ def test_score_command_with_apply_zscore_option_calls_scorer_correctly(
     # Arrange
     mock_project_instance = MagicMock(spec=DbtProject)
     mock_project_instance.models = {} # Added to prevent AttributeError
+    mock_project_instance.statistics = MagicMock(spec=ScoreStatistics) # Mock statistics
+    mock_project_instance.statistics.mean = 10.0
+    mock_project_instance.statistics.median = 9.0
+    mock_project_instance.statistics.std_dev = 2.0
+
     mock_loader_instance = MagicMock()
     mock_loader_instance.load.return_value = mock_project_instance
     mock_manifest_loader.return_value = mock_loader_instance
@@ -411,12 +416,15 @@ def test_terminal_output_without_zscore(sample_project_for_output_test: DbtProje
     """
     from io import StringIO
     project = sample_project_for_output_test
+    # Populate statistics for testing
+    project.statistics = ScoreStatistics(mean=20.5, median=20.5, std_dev=5.0)
+
     mock_file = StringIO()
     mock_console = Console(file=mock_file, force_terminal=True, width=200)
 
     with patch('modaryn.outputs.terminal.Console', return_value=mock_console):
         terminal_output = TerminalOutput()
-        terminal_output.generate_report(project, apply_zscore=False)
+        terminal_output.generate_report(project, apply_zscore=False, statistics=project.statistics)
 
         output = mock_file.getvalue()
         # Check for raw score indicator in header
@@ -428,4 +436,47 @@ def test_terminal_output_without_zscore(sample_project_for_output_test: DbtProje
         # model1 has lower raw_score (15.5)
         assert "model1" in output.splitlines()[5]
         assert "15.50" in output.splitlines()[5]
+        # Check for statistics
+        assert "--- Score Statistics ---" in output
+        assert "Mean: \x1b[1;36m20.500\x1b[0m" in output
+        assert "Median: \x1b[1;36m20.500\x1b[0m" in output
+        assert "Standard Deviation: \x1b[1;36m5.000\x1b[0m" in output
+
+
+def test_score_command_outputs_statistics(dbt_project_with_compiled_sql):
+    result = runner.invoke(app, ["score", "--project-path", str(dbt_project_with_compiled_sql)])
+    assert result.exit_code == 0
+    assert "--- Score Statistics ---" in result.stdout
+    assert "Mean:" in result.stdout
+    assert "Median:" in result.stdout
+    assert "Standard Deviation:" in result.stdout
+
+def test_ci_check_command_outputs_statistics(dbt_project_with_compiled_sql):
+    test_threshold = 1.0 # arbitrary threshold
+    result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold)])
+    assert result.exit_code == 1 # Expected to fail due to threshold
+    assert "--- Score Statistics ---" in result.stdout
+    assert "Mean:" in result.stdout
+    assert "Median:" in result.stdout
+    assert "Standard Deviation:" in result.stdout
+
+def test_score_command_to_markdown_file_outputs_statistics(dbt_project_with_compiled_sql, tmp_path):
+    output_file = tmp_path / "report_stats.md"
+    result = runner.invoke(app, ["score", "--project-path", str(dbt_project_with_compiled_sql), "-f", "markdown", "-o", str(output_file)])
+    assert result.exit_code == 0
+    content = output_file.read_text()
+    assert "### Score Statistics" in content
+    assert "- Mean:" in content
+    assert "- Median:" in content
+    assert "- Standard Deviation:" in content
+
+def test_score_command_to_html_file_outputs_statistics(dbt_project_with_compiled_sql, tmp_path):
+    output_file = tmp_path / "report_stats.html"
+    result = runner.invoke(app, ["score", "--project-path", str(dbt_project_with_compiled_sql), "-f", "html", "-o", str(output_file)])
+    assert result.exit_code == 0
+    content = output_file.read_text()
+    assert "<h2>Score Statistics</h2>" in content
+    assert "<li>Mean:" in content
+    assert "<li>Median:" in content
+    assert "<li>Standard Deviation:" in content
 

@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Dict, List
 import numpy as np
 
-from modaryn.domain.model import DbtProject, DbtModel
+from modaryn.domain.model import DbtProject, DbtModel, ScoreStatistics
 
 DEFAULT_CONFIG_PATH = Path(__file__).parent.parent / "config" / "default.yml"
 
@@ -26,23 +26,32 @@ class Scorer:
         return weights
 
     def score_project(self, project: DbtProject, apply_zscore: bool = False):
-        """Scores all models in a project using Z-scores for ranking."""
+        """Scores all models in a project. Optionally applies Z-scores and calculates score statistics."""
         if not project.models:
             return
 
-        raw_scores: Dict[str, float] = {}
+        raw_scores_map: Dict[str, float] = {}
         for model in project.models.values():
             model_raw_score = self._calculate_raw_score(model)
             model.raw_score = model_raw_score
-            raw_scores[model.unique_id] = model_raw_score
+            raw_scores_map[model.unique_id] = model_raw_score
+
+        # Calculate statistics for raw scores
+        if raw_scores_map:
+            raw_score_values: List[float] = list(raw_scores_map.values())
+            project.statistics = ScoreStatistics(
+                mean=np.mean(raw_score_values),
+                median=np.median(raw_score_values),
+                std_dev=np.std(raw_score_values)
+            )
 
         if apply_zscore:
-            score_values: List[float] = list(raw_scores.values())
+            score_values: List[float] = list(raw_scores_map.values()) # Use raw scores for Z-score calculation
             mean_score = np.mean(score_values)
             std_dev = np.std(score_values)
 
             for model in project.models.values():
-                raw_score = raw_scores[model.unique_id]
+                raw_score = raw_scores_map[model.unique_id]
                 if std_dev > 0:
                     model.score = (raw_score - mean_score) / std_dev
                 else:
