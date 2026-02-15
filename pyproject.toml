@@ -24,7 +24,7 @@ test = [
 modaryn = "modaryn.cli:app"
 
 [tool.setuptools]
-packages = ["modaryn"]
+packages.find = { where = ["."], include = ["modaryn*"], exclude = ["tests*", "examples*"] }
 
 [dependency-groups]
 dev = [
