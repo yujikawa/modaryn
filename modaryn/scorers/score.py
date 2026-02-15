@@ -25,25 +25,28 @@ class Scorer:
                 weights["importance"].update(user_weights["importance"])
         return weights
 
-    def score_project(self, project: DbtProject):
+    def score_project(self, project: DbtProject, apply_zscore: bool = False):
         """Scores all models in a project using Z-scores for ranking."""
         if not project.models:
             return
 
         raw_scores: Dict[str, float] = {}
         for model in project.models.values():
-            raw_scores[model.unique_id] = self._calculate_raw_score(model)
+            model_raw_score = self._calculate_raw_score(model)
+            model.raw_score = model_raw_score
+            raw_scores[model.unique_id] = model_raw_score
 
-        score_values: List[float] = list(raw_scores.values())
-        mean_score = np.mean(score_values)
-        std_dev = np.std(score_values)
+        if apply_zscore:
+            score_values: List[float] = list(raw_scores.values())
+            mean_score = np.mean(score_values)
+            std_dev = np.std(score_values)
 
-        for model in project.models.values():
-            raw_score = raw_scores[model.unique_id]
-            if std_dev > 0:
-                model.score = (raw_score - mean_score) / std_dev
-            else:
-                model.score = 0.0  # All models have the same raw score
+            for model in project.models.values():
+                raw_score = raw_scores[model.unique_id]
+                if std_dev > 0:
+                    model.score = (raw_score - mean_score) / std_dev
+                else:
+                    model.score = 0.0  # All models have the same raw score
 
     def _calculate_raw_score(self, model: DbtModel) -> float:
         """Calculates a raw, un-normalized score for a single model."""

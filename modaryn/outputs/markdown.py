@@ -1,20 +1,24 @@
-from typing import Optional
+from typing import Optional, List
 
-from modaryn.domain.model import DbtProject
+from modaryn.domain.model import DbtProject, DbtModel
 from . import OutputGenerator
 
 
 class MarkdownOutput(OutputGenerator):
-    def generate_report(self, project: DbtProject) -> Optional[str]:
+    def generate_report(self, project: DbtProject, problematic_models: Optional[List[DbtModel]] = None, threshold: Optional[float] = None, apply_zscore: bool = False) -> Optional[str]:
+        score_header = "Score (Z-Score)" if apply_zscore else "Score (Raw)"
+        sort_key = (lambda m: m.score) if apply_zscore else (lambda m: m.raw_score)
+        score_attr = "score" if apply_zscore else "raw_score"
+
         lines = [
             "# Modaryn Score and Scan Report",
             "",
-            "| Rank | Model Name | Score (Z-Score) | JOINs | CTEs | Conditionals | WHEREs | SQL Chars | Downstream Children |",
+            f"| Rank | Model Name | {score_header} | JOINs | CTEs | Conditionals | WHEREs | SQL Chars | Downstream Children |",
             "|------|------------|-----------------|-------|------|--------------|--------|-----------|---------------------|",
         ]
         sorted_models = sorted(
             project.models.values(),
-            key=lambda m: m.score if m.score is not None else -1, # Handle None scores
+            key=lambda m: sort_key(m) if sort_key(m) is not None else -1,
             reverse=True,
         )
         for i, model in enumerate(sorted_models):
@@ -31,8 +35,8 @@ class MarkdownOutput(OutputGenerator):
                 where_count = "N/A"
                 sql_char_count = "N/A"
 
+            score_to_display = getattr(model, score_attr)
             lines.append(
-                f"| {i + 1} | {model.model_name} | {model.score:.2f} | {join_count} | {cte_count} | {conditional_count} | {where_count} | {sql_char_count} | {model.downstream_model_count} |"
+                f"| {i + 1} | {model.model_name} | {score_to_display:.2f} | {join_count} | {cte_count} | {conditional_count} | {where_count} | {sql_char_count} | {model.downstream_model_count} |"
             )
         return "\n".join(lines)
-

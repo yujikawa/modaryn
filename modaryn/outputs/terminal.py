@@ -10,11 +10,20 @@ class TerminalOutput(OutputGenerator):
     def __init__(self):
         self.console = Console()
 
-    def generate_report(self, project: DbtProject, problematic_models: Optional[List[DbtModel]] = None, threshold: Optional[float] = None) -> Optional[str]:
+    def generate_report(self, project: DbtProject, problematic_models: Optional[List[DbtModel]] = None, threshold: Optional[float] = None, apply_zscore: bool = False) -> Optional[str]:
         table = Table(title="dbt Models Score and Scan Results")
         table.add_column("Rank", justify="right", style="cyan", no_wrap=True)
         table.add_column("Model Name", justify="left", style="white")
-        table.add_column("Score", justify="right", style="green")
+
+        if apply_zscore:
+            table.add_column("Score (Z-Score)", justify="right", style="green")
+            sort_key = lambda m: m.score if m.score is not None else -1
+            score_attr = "score"
+        else:
+            table.add_column("Score (Raw)", justify="right", style="green")
+            sort_key = lambda m: m.raw_score if m.raw_score is not None else -1
+            score_attr = "raw_score"
+
         table.add_column("JOINs", justify="right", style="blue")
         table.add_column("CTEs", justify="right", style="blue")
         table.add_column("Conditionals", justify="right", style="blue")
@@ -24,7 +33,7 @@ class TerminalOutput(OutputGenerator):
 
         sorted_models = sorted(
             project.models.values(),
-            key=lambda m: m.score if m.score is not None else -1, # Handle None scores
+            key=sort_key,
             reverse=True,
         )
 
@@ -46,10 +55,12 @@ class TerminalOutput(OutputGenerator):
                 where_count = "N/A"
                 sql_char_count = "N/A"
 
+            score_to_display = getattr(model, score_attr)
+
             table.add_row(
                 str(i + 1),
                 f"{model_name_style}{model.model_name}[/]" if model_name_style else model.model_name,
-                f"{model.score:.2f}" if model.score is not None else "N/A",
+                f"{score_to_display:.2f}" if score_to_display is not None else "N/A",
                 join_count,
                 cte_count,
                 conditional_count,

@@ -1,7 +1,7 @@
 from jinja2 import Environment, FileSystemLoader
-from typing import Optional
+from typing import Optional, List
 
-from modaryn.domain.model import DbtProject
+from modaryn.domain.model import DbtProject, DbtModel
 from . import OutputGenerator
 
 HTML_SCORE_TEMPLATE = """
@@ -24,7 +24,7 @@ HTML_SCORE_TEMPLATE = """
         <tr>
             <th>Rank</th>
             <th>Model Name</th>
-            <th>Score (Z-score)</th>
+            <th>{% if apply_zscore %}Score (Z-Score){% else %}Score (Raw){% endif %}</th>
             <th>JOINs</th>
             <th>CTEs</th>
             <th>Conditionals</th>
@@ -36,7 +36,13 @@ HTML_SCORE_TEMPLATE = """
         <tr>
             <td>{{ loop.index }}</td>
             <td>{{ model.model_name }}</td>
-            <td>{{ "%.2f"|format(model.score) }}</td>
+            <td>
+                {% if apply_zscore %}
+                    {{ "%.2f"|format(model.score) }}
+                {% else %}
+                    {{ "%.2f"|format(model.raw_score) }}
+                {% endif %}
+            </td>
             <td>{{ model.complexity.join_count if model.complexity else 'N/A' }}</td>
             <td>{{ model.complexity.cte_count if model.complexity else 'N/A' }}</td>
             <td>{{ model.complexity.conditional_count if model.complexity else 'N/A' }}</td>
@@ -55,9 +61,13 @@ class HtmlOutput(OutputGenerator):
     def __init__(self):
         self.env = Environment(loader=FileSystemLoader('.')) # Not used, but required
 
-    def generate_report(self, project: DbtProject) -> Optional[str]:
+    def generate_report(self, project: DbtProject, problematic_models: Optional[List[DbtModel]] = None, threshold: Optional[float] = None, apply_zscore: bool = False) -> Optional[str]:
+        sort_key = (lambda m: m.score) if apply_zscore else (lambda m: m.raw_score)
+        
         sorted_models = sorted(
-            project.models.values(), key=lambda m: m.score, reverse=True
+            project.models.values(), 
+            key=lambda m: sort_key(m) if sort_key(m) is not None else -1,
+            reverse=True
         )
         template = self.env.from_string(HTML_SCORE_TEMPLATE)
-        return template.render(models=sorted_models)
+        return template.render(models=sorted_models, apply_zscore=apply_zscore)

@@ -63,6 +63,12 @@ def score(
         readable=True,
         resolve_path=True,
     ),
+    apply_zscore: bool = typer.Option(
+        False,
+        "--apply-zscore",
+        "-z",
+        help="Apply Z-score transformation to model scores.",
+    ),
     format: OutputFormat = typer.Option(
         OutputFormat.terminal,
         "--format",
@@ -91,7 +97,7 @@ def score(
 
     console.print(f"⚖️  Scoring project...")
     scorer = Scorer(config)
-    scorer.score_project(project)
+    scorer.score_project(project, apply_zscore=apply_zscore)
 
     output_generator: OutputGenerator
     if format == OutputFormat.terminal:
@@ -105,7 +111,7 @@ def score(
         console.print(f"[bold red]Unsupported output format: {format.value}[/bold red]")
         raise typer.Exit(code=1)
     
-    report_content = output_generator.generate_report(project)
+    report_content = output_generator.generate_report(project, apply_zscore=apply_zscore)
 
     if report_content:
         if output:
@@ -152,6 +158,12 @@ def ci_check(
         readable=True,
         resolve_path=True,
     ),
+    apply_zscore: bool = typer.Option(
+        False,
+        "--apply-zscore",
+        "-z",
+        help="Use Z-scores instead of raw scores for threshold checking and output.",
+    ),
     format: OutputFormat = typer.Option(
         OutputFormat.terminal,
         "--format",
@@ -168,7 +180,8 @@ def ci_check(
     ),
 ):
     """
-    Checks dbt model complexity against a defined Z-score threshold for CI pipelines.
+    Checks dbt model complexity against a defined score threshold for CI pipelines.
+    By default, uses raw scores. Use --apply-zscore to check against Z-scores.
     Exits with code 1 if any model's score exceeds the threshold, 0 otherwise.
     """
     console.print(f"🔍 Loading dbt project: [bold cyan]{project_path}[/bold cyan]")
@@ -181,15 +194,22 @@ def ci_check(
 
     console.print(f"⚖️  Scoring project and checking thresholds...")
     scorer = Scorer(config)
-    scorer.score_project(project)
+    scorer.score_project(project, apply_zscore=apply_zscore)
 
-    problematic_models = [model for model in project.models.values() if model.score > threshold]
+    problematic_models = []
+    if apply_zscore:
+        # Check against z-score if --apply-zscore is specified
+        problematic_models = [model for model in project.models.values() if model.score > threshold]
+    else:
+        # Default to raw score
+        problematic_models = [model for model in project.models.values() if model.raw_score > threshold]
 
     exit_code: int
     if problematic_models:
         console.print(f"[bold red]❌ Threshold exceeded by {len(problematic_models)} models:[/bold red]")
         for model in problematic_models:
-            console.print(f"  - [red]{model.model_name}[/red] (Score: {model.score:.3f} > Threshold: {threshold:.3f})")
+            score_value = model.score if apply_zscore else model.raw_score
+            console.print(f"  - [red]{model.model_name}[/red] (Score: {score_value:.3f} > Threshold: {threshold:.3f})")
         exit_code = 1
     else:
         console.print("[bold green]✅ All models are within the defined threshold.[/bold green]")
@@ -206,7 +226,7 @@ def ci_check(
         console.print(f"[bold red]Unsupported output format: {format.value}[/bold red]")
         raise typer.Exit(code=1)
     
-    report_content = output_generator.generate_report(project, problematic_models, threshold)
+    report_content = output_generator.generate_report(project, problematic_models, threshold, apply_zscore=apply_zscore)
 
     if report_content:
         if output:

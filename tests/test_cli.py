@@ -109,7 +109,7 @@ def test_scoring_and_ranking_with_compiled_sql(dbt_project_with_compiled_sql):
     project = loader.load()
 
     scorer = Scorer()
-    scorer.score_project(project)
+    scorer.score_project(project, apply_zscore=True)
 
     # Weights (from `modaryn/config/default.yml`):
     # join_count: 2.0, cte_count: 1.5, conditional_count: 1.0, where_count: 0.5, sql_char_count: 0.01, downstream_model_count: 1.0
@@ -183,13 +183,26 @@ def test_score_command_to_markdown_file(dbt_project_with_compiled_sql, tmp_path)
     assert output_file.exists()
     content = output_file.read_text()
     assert "# Modaryn Score and Scan Report" in content
-    assert "| Rank | Model Name | Score (Z-Score) | JOINs | CTEs | Conditionals | WHEREs | SQL Chars | Downstream Children |" in content
+    assert "| Rank | Model Name | Score (Raw) | JOINs | CTEs | Conditionals | WHEREs | SQL Chars | Downstream Children |" in content
     assert "int_customer_order_summary" in content
     assert "fct_customer_product_affinity" in content
     assert "int_order_product_details" in content
     assert "stg_orders" in content
     assert "stg_products" in content
     assert "stg_customers" in content
+
+
+def test_score_command_to_markdown_file_with_zscore(dbt_project_with_compiled_sql, tmp_path):
+    output_file = tmp_path / "report_zscore.md"
+    result = runner.invoke(app, ["score", "--project-path", str(dbt_project_with_compiled_sql), "-f", "markdown", "-o", str(output_file), "--apply-zscore"])
+    assert result.exit_code == 0
+    assert "Report saved to" in result.stdout
+    assert output_file.name in result.stdout
+    assert output_file.exists()
+    content = output_file.read_text()
+    assert "# Modaryn Score and Scan Report" in content
+    assert "| Rank | Model Name | Score (Z-Score) | JOINs | CTEs | Conditionals | WHEREs | SQL Chars | Downstream Children |" in content
+    assert "int_customer_order_summary" in content
 
 
 def test_naked_invoke_shows_logo():
@@ -209,11 +222,11 @@ def test_ci_check_command_is_listed_in_help():
     assert result.exit_code == 0
     assert "ci-check" in result.stdout
 
-def test_ci_check_command_fails_on_threshold_exceeded(dbt_project_with_compiled_sql):
+def test_ci_check_command_fails_on_zscore_threshold_exceeded(dbt_project_with_compiled_sql):
     # The highest score is int_customer_order_summary (1.69), fct_customer_product_affinity (0.97)
     # Let's set a threshold that int_customer_order_summary will exceed (e.g., 1.0)
     test_threshold = 1.0
-    result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold)])
+    result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold), "--apply-zscore"])
     
     assert result.exit_code == 1
     assert "Threshold exceeded by 1 models" in result.stdout
@@ -224,14 +237,45 @@ def test_ci_check_command_fails_on_threshold_exceeded(dbt_project_with_compiled_
     assert "Total models checked: 6" in result.stdout
     assert f"Threshold: {test_threshold:.3f}" in result.stdout
 
-def test_ci_check_command_passes_on_threshold_not_exceeded(dbt_project_with_compiled_sql):
+def test_ci_check_command_passes_on_zscore_threshold_not_exceeded(dbt_project_with_compiled_sql):
     # Set a threshold higher than the highest score (int_customer_order_summary: 1.69)
     test_threshold = 1.7
-    result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold)])
+    result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold), "--apply-zscore"])
     
     assert result.exit_code == 0
     assert "All models are within the defined threshold." in result.stdout
     assert "Threshold exceeded" not in result.stdout # Ensure no failure message
+    assert "--- CI Check Summary ---" in result.stdout
+    assert "Status: PASSED" in result.stdout
+    assert "All models are within the defined threshold." in result.stdout
+    assert "Total models checked: 6" in result.stdout
+    assert f"Threshold: {test_threshold:.3f}" in result.stdout
+
+
+def test_ci_check_command_fails_on_threshold_exceeded(dbt_project_with_compiled_sql):
+    # The highest raw score is int_customer_order_summary (21.76)
+    # Let's set a threshold that int_customer_order_summary will exceed (e.g., 20.0)
+    test_threshold = 20.0
+    result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold)])
+    
+    assert result.exit_code == 1
+    assert "Threshold exceeded by 1 models" in result.stdout
+    assert "int_customer_order_summary" in result.stdout
+    assert "--- CI Check Summary ---" in result.stdout
+    assert "Status: FAILED" in result.stdout
+    assert "1 models exceeded threshold." in result.stdout
+    assert "Total models checked: 6" in result.stdout
+    assert f"Threshold: {test_threshold:.3f}" in result.stdout
+
+
+def test_ci_check_command_passes_on_threshold_not_exceeded(dbt_project_with_compiled_sql):
+    # Set a threshold higher than the highest raw score (int_customer_order_summary: 21.76)
+    test_threshold = 22.0
+    result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold)])
+    
+    assert result.exit_code == 0
+    assert "All models are within the defined threshold." in result.stdout
+    assert "Threshold exceeded" not in result.stdout
     assert "--- CI Check Summary ---" in result.stdout
     assert "Status: PASSED" in result.stdout
     assert "All models are within the defined threshold." in result.stdout
@@ -251,7 +295,7 @@ def test_terminal_output_highlights_problematic_models(dbt_project_with_compiled
         loader = ManifestLoader(dbt_project_with_compiled_sql)
         project = loader.load()
         scorer = Scorer()
-        scorer.score_project(project)
+        scorer.score_project(project, apply_zscore=True)
         terminal_output = TerminalOutput()
         
         # Use models from sample_project that exceed a threshold
@@ -275,3 +319,113 @@ def test_terminal_output_highlights_problematic_models(dbt_project_with_compiled
                    for line in output_str.splitlines())
         assert any("\x1b[31m" in line and "fct_customer_product_affinity" in line 
                 for line in output_str.splitlines())
+
+@patch('modaryn.cli.Scorer')
+@patch('modaryn.cli.ManifestLoader')
+def test_score_command_with_apply_zscore_option_calls_scorer_correctly(
+    mock_manifest_loader, mock_scorer, dbt_project_with_compiled_sql
+):
+    # Arrange
+    mock_project_instance = MagicMock(spec=DbtProject)
+    mock_project_instance.models = {} # Added to prevent AttributeError
+    mock_loader_instance = MagicMock()
+    mock_loader_instance.load.return_value = mock_project_instance
+    mock_manifest_loader.return_value = mock_loader_instance
+
+    mock_scorer_instance = MagicMock()
+    mock_scorer.return_value = mock_scorer_instance
+
+    # Act
+    result = runner.invoke(app, [
+        "score",
+        "--project-path", str(dbt_project_with_compiled_sql),
+        "--apply-zscore"
+    ])
+
+    # Assert
+    assert result.exit_code == 0
+    mock_manifest_loader.assert_called_once_with(dbt_project_with_compiled_sql, dialect="bigquery")
+    mock_loader_instance.load.assert_called_once()
+    mock_scorer.assert_called_once_with(None) # No config passed
+    mock_scorer_instance.score_project.assert_called_once_with(mock_project_instance, apply_zscore=True)
+    assert "Scoring project..." in result.stdout
+
+
+@pytest.fixture
+def sample_project_for_output_test() -> DbtProject:
+    """Creates a sample DbtProject for testing outputs."""
+    model1 = DbtModel(
+        unique_id="model.proj.model1",
+        model_name="model1",
+        file_path=Path("models/model1.sql"),
+        raw_sql="select 1",
+        complexity=SqlComplexityResult(join_count=1, cte_count=1, conditional_count=1, where_count=1, sql_char_count=100),
+        raw_score=15.5,
+        score=1.5, # z-score
+    )
+    model2 = DbtModel(
+        unique_id="model.proj.model2",
+        model_name="model2",
+        file_path=Path("models/model2.sql"),
+        raw_sql="select 2",
+        complexity=SqlComplexityResult(join_count=2, cte_count=2, conditional_count=2, where_count=2, sql_char_count=200),
+        raw_score=25.5,
+        score=2.5, # z-score
+    )
+    project = DbtProject(models={"model.proj.model1": model1, "model.proj.model2": model2})
+    # Manually add children to test downstream count
+    model1.children = {model2.unique_id: model2}
+    return project
+
+
+def test_terminal_output_with_zscore(sample_project_for_output_test: DbtProject):
+    """
+    Tests terminal output when apply_zscore is True.
+    It should display the z-score and indicate it in the header.
+    """
+    from io import StringIO
+    project = sample_project_for_output_test
+    mock_file = StringIO()
+    mock_console = Console(file=mock_file, force_terminal=True, width=200)
+
+    with patch('modaryn.outputs.terminal.Console', return_value=mock_console):
+        terminal_output = TerminalOutput()
+        terminal_output.generate_report(project, apply_zscore=True)
+
+        output = mock_file.getvalue()
+        # Check for z-score indicator in header
+        assert "Score (Z-Score)" in output
+        # Check that the z-scores are displayed (sorted by z-score desc)
+        # model2 has higher z-score (2.5)
+        assert "model2" in output.splitlines()[4]
+        assert "2.50" in output.splitlines()[4]
+        # model1 has lower z-score (1.5)
+        assert "model1" in output.splitlines()[5]
+        assert "1.50" in output.splitlines()[5]
+
+
+def test_terminal_output_without_zscore(sample_project_for_output_test: DbtProject):
+    """
+    Tests terminal output when apply_zscore is False.
+    It should display the raw score and indicate it in the header.
+    """
+    from io import StringIO
+    project = sample_project_for_output_test
+    mock_file = StringIO()
+    mock_console = Console(file=mock_file, force_terminal=True, width=200)
+
+    with patch('modaryn.outputs.terminal.Console', return_value=mock_console):
+        terminal_output = TerminalOutput()
+        terminal_output.generate_report(project, apply_zscore=False)
+
+        output = mock_file.getvalue()
+        # Check for raw score indicator in header
+        assert "Score (Raw)" in output
+        # Check that the raw scores are displayed (sorted by raw_score desc)
+        # model2 has higher raw_score (25.5)
+        assert "model2" in output.splitlines()[4]
+        assert "25.50" in output.splitlines()[4]
+        # model1 has lower raw_score (15.5)
+        assert "model1" in output.splitlines()[5]
+        assert "15.50" in output.splitlines()[5]
+
