@@ -21,6 +21,27 @@ Analyzes and scores dbt models based on complexity and importance, displaying co
 modaryn score --project-path . --dialect bigquery --config custom_weights.yml --format html --output modaryn_report.html
 ```
 
+##### Custom Weights Configuration (`custom_weights.yml`)
+You can customize the weights used for calculating complexity and importance scores by providing a YAML file via the `--config` flag. This allows you to fine-tune the scoring mechanism to better suit your project's needs.
+
+The structure of the `custom_weights.yml` should mirror the default configuration found in `modaryn/config/default.yml`. Here's an example based on the default:
+
+```yaml
+sql_complexity:
+  join_count: 2.0
+  cte_count: 1.5
+  conditional_count: 1.0
+  where_count: 0.5
+  sql_char_count: 0.01
+
+importance:
+  downstream_model_count: 1.0
+```
+- `sql_complexity`: Contains weights for various SQL complexity metrics. Adjusting these values will change how much each factor contributes to the overall complexity score.
+- `importance`: Contains weights for importance metrics. Currently, `downstream_model_count` is used to weigh models based on how many other models depend on them.
+
+Adjust these values to emphasize or de-emphasize certain aspects of complexity or importance.
+
 ![modaryn](./docs/assets/result.png)
 
 #### `ci-check` command
@@ -34,33 +55,3 @@ modaryn ci-check --project-path . --threshold 1.0 --format terminal
 - `--format`: Output format (`terminal`, `markdown`, `html`). Defaults to `terminal`.
 
 ![modaryn](./docs/assets/result2.png)
-
----
-
-### 概要 (Overview)
-`modaryn` は、dbt (data build tool) プロジェクトを分析するために設計されたPythonベースのコマンドラインインターフェース (CLI) ツールです。その主な目的は、dbtモデルの複雑さと構造的重要性に基づいてスコアを付け、データチームが高リスクで影響の大きいデータモデルを特定するのに役立つことです。現在、`JOIN`数、CTE数、条件文(`CASE`、`IF`)、`WHERE`句の数、SQLの文字数などの詳細な複雑性メトリクスを抽出し、Zスコアを使用してモデルをランク付けします。
-
-### インストール (Installation)
-このプロジェクトは、依存関係の管理に `uv` を使用しています。依存関係をインストールするには、以下を実行します。
-```bash
-uv pip install -e .
-```
-
-### 使い方 (Usage)
-`modaryn` CLIは以下のコマンドを提供します。
-
-#### `score` コマンド
-複雑さと重要性に基づいてdbtモデルを分析およびスコアリングし、スキャンとスコアの情報を組み合わせたレポートを表示します。
-```bash
-modaryn score --project-path . --dialect bigquery --config custom_weights.yml --format html --output modaryn_report.html
-```
-
-#### `ci-check` コマンド
-CIパイプライン向けに、dbtモデルの複雑性を定義されたZスコア閾値と照合してチェックします。いずれかのモデルのスコアが閾値を超過した場合、終了コード1で終了し、そうでない場合は0で終了します。このコマンドは、CI/CDワークフローにおける自動化された品質ゲートのために設計されています。
-
-```bash
-modaryn ci-check --project-path . --threshold 1.5 --format terminal
-```
-- `--project-path`: dbtプロジェクトディレクトリへのパス。
-- `--threshold`: モデルに許容される最大Zスコア閾値。いずれかのモデルがこの値を超過するとCIは失敗します。
-- `--format`: 出力フォーマット (`terminal`、`markdown`、`html`)。デフォルトは`terminal`です。
