@@ -9,7 +9,7 @@ helping teams identify high-risk and high-impact data models.
 ### Installation
 The project uses `uv` for dependency management. To install dependencies, run:
 ```bash
-uv pip install -e .
+uv pip install git+https://github.com/yujikawa/modaryn.git
 ```
 
 ### Usage

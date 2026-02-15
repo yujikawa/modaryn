@@ -5,7 +5,7 @@
 ### インストール (Installation)
 このプロジェクトは、依存関係の管理に `uv` を使用しています。依存関係をインストールするには、以下を実行します。
 ```bash
-uv pip install -e .
+uv pip install git+https://github.com/yujikawa/modaryn.git
 ```
 
 ### 使い方 (Usage)
