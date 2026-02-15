@@ -80,3 +80,261 @@ models:
       - name: product_id
         tests:
           - not_null
+  - name: int_daily_sales
+    description: "Intermediate model aggregating daily sales."
+    columns:
+      - name: date_day
+        tests:
+          - unique
+          - not_null
+      - name: daily_revenue
+        tests:
+          - not_null
+  - name: fct_daily_customer_acquisition
+    description: "Fact model for daily new customer acquisition."
+    columns:
+      - name: date_day
+        tests:
+          - unique
+          - not_null
+      - name: new_customers
+        tests:
+          - not_null
+  - name: dim_accounts
+    description: "Dimension table for financial accounts."
+    columns:
+      - name: account_id
+        tests:
+          - unique
+          - not_null
+      - name: account_name
+        tests:
+          - not_null
+  - name: int_monthly_revenue
+    description: "Intermediate model aggregating monthly revenue."
+    columns:
+      - name: date_month
+        tests:
+          - unique
+          - not_null
+      - name: monthly_revenue
+        tests:
+          - not_null
+  - name: fct_profit_and_loss_statement
+    description: "Fact model for profit and loss statement, highly complex."
+    columns:
+      - name: period
+        tests:
+          - unique
+          - not_null
+      - name: total_revenue
+        tests:
+          - not_null
+      - name: total_expenses
+        tests:
+          - not_null
+  - name: dim_channels
+    description: "Dimension table for marketing channels."
+    columns:
+      - name: channel_id
+        tests:
+          - unique
+          - not_null
+      - name: channel_name
+        tests:
+          - not_null
+  - name: int_campaign_performance
+    description: "Intermediate model for marketing campaign performance."
+    columns:
+      - name: campaign_id
+        tests:
+          - unique
+          - not_null
+      - name: total_spend
+        tests:
+          - not_null
+      - name: total_conversions
+        tests:
+          - not_null
+  - name: fct_customer_segmentation
+    description: "Fact model for customer segmentation based on behavior, very complex."
+    columns:
+      - name: customer_id
+        tests:
+          - unique
+          - not_null
+      - name: segment
+        tests:
+          - not_null
+  - name: int_customer_daily_summary
+    description: "Daily summary of customer activities."
+    columns:
+      - name: customer_id
+        tests:
+          - not_null
+      - name: date_day
+        tests:
+          - not_null
+      - name: daily_spend
+        tests:
+          - not_null
+  - name: int_product_daily_performance
+    description: "Daily performance of products."
+    columns:
+      - name: product_id
+        tests:
+          - not_null
+      - name: date_day
+        tests:
+          - not_null
+      - name: daily_sales
+        tests:
+          - not_null
+  - name: fct_customer_transactions
+    description: "Detailed customer transaction fact table."
+    columns:
+      - name: transaction_id
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        tests:
+          - not_null
+      - name: order_id
+        tests:
+          - not_null
+  - name: dim_dates
+    description: "Common date dimension table."
+    columns:
+      - name: date_day
+        tests:
+          - unique
+          - not_null
+      - name: day_of_week
+        tests:
+          - not_null
+      - name: week_of_year
+        tests:
+          - not_null
+  - name: stg_shipping
+    description: "Staging model for shipping data."
+    columns:
+      - name: shipping_id
+        tests:
+          - unique
+          - not_null
+      - name: order_id
+        tests:
+          - not_null
+  - name: int_order_shipping_details
+    description: "Intermediate model combining order and shipping info."
+    columns:
+      - name: order_id
+        tests:
+          - unique
+          - not_null
+      - name: shipping_status
+        tests:
+          - not_null
+  - name: int_product_costs
+    description: "Intermediate model for product cost analysis."
+    columns:
+      - name: product_id
+        tests:
+          - not_null
+      - name: unit_cost
+        tests:
+          - not_null
+  - name: fct_gross_margin_analysis
+    description: "Fact table for gross margin by product and customer."
+    columns:
+      - name: transaction_id
+        tests:
+          - not_null
+      - name: gross_margin
+        tests:
+          - not_null
+  - name: int_daily_expenses
+    description: "Daily breakdown of operational expenses."
+    columns:
+      - name: date_day
+        tests:
+          - not_null
+      - name: expense_type
+        tests:
+          - not_null
+      - name: amount
+        tests:
+          - not_null
+  - name: fct_cash_flow_statement
+    description: "Complex cash flow statement model."
+    columns:
+      - name: period
+        tests:
+          - unique
+          - not_null
+      - name: operating_cash_flow
+        tests:
+          - not_null
+  - name: dim_vendors
+    description: "Dimension for vendors."
+    columns:
+      - name: vendor_id
+        tests:
+          - unique
+          - not_null
+      - name: vendor_name
+        tests:
+          - not_null
+  - name: int_customer_demographics
+    description: "Customer data with demographic info."
+    columns:
+      - name: customer_id
+        tests:
+          - unique
+          - not_null
+      - name: age_group
+        tests:
+          - not_null
+  - name: fct_customer_retention
+    description: "Fact table for customer retention rates."
+    columns:
+      - name: cohort_date
+        tests:
+          - not_null
+      - name: retention_rate
+        tests:
+          - not_null
+  - name: stg_website_traffic
+    description: "Staging model for website traffic data."
+    columns:
+      - name: visit_id
+        tests:
+          - unique
+          - not_null
+      - name: page_views
+        tests:
+          - not_null
+  - name: fct_marketing_attribution
+    description: "Model to attribute sales to marketing channels."
+    columns:
+      - name: order_id
+        tests:
+          - not_null
+      - name: attributed_channel
+        tests:
+          - not_null
+      - name: attributed_revenue
+        tests:
+          - not_null
+  - name: dim_products
+    description: "Dimension table for products."
+    columns:
+      - name: product_key
+        tests:
+          - unique
+          - not_null
+      - name: product_category
+        tests:
+          - not_null
+
