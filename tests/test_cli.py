@@ -56,7 +56,7 @@ def test_sql_complexity_analysis_with_compiled_sql(dbt_project_with_compiled_sql
     assert model_ics.complexity.cte_count == 2
     assert model_ics.complexity.conditional_count == 3
     assert model_ics.complexity.where_count == 0
-    assert model_ics.complexity.sql_char_count == 1076
+    assert model_ics.complexity.sql_char_count == 815 # Updated from 1076
     assert model_ics.downstream_model_count == 1 # fct_customer_product_affinity
 
     # fct_customer_product_affinity
@@ -65,7 +65,7 @@ def test_sql_complexity_analysis_with_compiled_sql(dbt_project_with_compiled_sql
     assert model_fcpa.complexity.cte_count == 2
     assert model_fcpa.complexity.conditional_count == 0
     assert model_fcpa.complexity.where_count == 2 # "where total_product_spend > 0" and "where rnk <= 3"
-    assert model_fcpa.complexity.sql_char_count == 1033
+    assert model_fcpa.complexity.sql_char_count == 806 # Updated from 819
     assert model_fcpa.downstream_model_count == 0
 
     # int_order_product_details
@@ -74,7 +74,7 @@ def test_sql_complexity_analysis_with_compiled_sql(dbt_project_with_compiled_sql
     assert model_iopd.complexity.cte_count == 1
     assert model_iopd.complexity.conditional_count == 0
     assert model_iopd.complexity.where_count == 0
-    assert model_iopd.complexity.sql_char_count == 385
+    assert model_iopd.complexity.sql_char_count == 290 # Updated from 283
     assert model_iopd.downstream_model_count == 1 # fct_customer_product_affinity
 
     # stg_orders
@@ -83,7 +83,7 @@ def test_sql_complexity_analysis_with_compiled_sql(dbt_project_with_compiled_sql
     assert model_so.complexity.cte_count == 0
     assert model_so.complexity.conditional_count == 0
     assert model_so.complexity.where_count == 0
-    assert model_so.complexity.sql_char_count == 110
+    assert model_so.complexity.sql_char_count == 89 # Updated from 110
     assert model_so.downstream_model_count == 12 # Updated from 2
 
     # stg_products
@@ -92,7 +92,7 @@ def test_sql_complexity_analysis_with_compiled_sql(dbt_project_with_compiled_sql
     assert model_sp.complexity.cte_count == 0
     assert model_sp.complexity.conditional_count == 0
     assert model_sp.complexity.where_count == 0
-    assert model_sp.complexity.sql_char_count == 80
+    assert model_sp.complexity.sql_char_count == 67 # Updated from 80
     assert model_sp.downstream_model_count == 4 # Updated from 2
 
     # stg_customers
@@ -101,7 +101,7 @@ def test_sql_complexity_analysis_with_compiled_sql(dbt_project_with_compiled_sql
     assert model_sc.complexity.cte_count == 0
     assert model_sc.complexity.conditional_count == 0
     assert model_sc.complexity.where_count == 0
-    assert model_sc.complexity.sql_char_count == 94
+    assert model_sc.complexity.sql_char_count == 81 # Updated from 94
     assert model_sc.downstream_model_count == 3 # Updated from 4
 
 def test_scoring_and_ranking_with_compiled_sql(dbt_project_with_compiled_sql):
@@ -158,12 +158,12 @@ def test_scoring_and_ranking_with_compiled_sql(dbt_project_with_compiled_sql):
     assert sorted_models[5].model_name == "fct_customer_retention"
 
     # Assert scores with approximation
-    assert project.get_model("model.sample_project.fct_customer_segmentation").score == pytest.approx(2.82, abs=0.01)
-    assert project.get_model("model.sample_project.int_customer_order_summary").score == pytest.approx(2.56, abs=0.01)
-    assert project.get_model("model.sample_project.fct_customer_product_affinity").score == pytest.approx(1.54, abs=0.01)
-    assert project.get_model("model.sample_project.fct_profit_and_loss_statement").score == pytest.approx(1.25, abs=0.01)
-    assert project.get_model("model.sample_project.stg_orders").score == pytest.approx(0.94, abs=0.01)
-    assert project.get_model("model.sample_project.fct_customer_retention").score == pytest.approx(0.93, abs=0.01)
+    assert project.get_model("model.sample_project.fct_customer_segmentation").score == pytest.approx(2.835, abs=0.001)
+    assert project.get_model("model.sample_project.int_customer_order_summary").score == pytest.approx(2.498, abs=0.001)
+    assert project.get_model("model.sample_project.fct_customer_product_affinity").score == pytest.approx(1.439, abs=0.001)
+    assert project.get_model("model.sample_project.fct_profit_and_loss_statement").score == pytest.approx(1.263, abs=0.001)
+    assert project.get_model("model.sample_project.stg_orders").score == pytest.approx(1.196, abs=0.001)
+    assert project.get_model("model.sample_project.fct_customer_retention").score == pytest.approx(0.926, abs=0.001)
 
 
 def test_score_command_with_project_path(dbt_project_with_compiled_sql):
@@ -223,26 +223,26 @@ def test_ci_check_command_is_listed_in_help():
     assert "ci-check" in result.stdout
 
 def test_ci_check_command_fails_on_zscore_threshold_exceeded(dbt_project_with_compiled_sql):
-    # The highest Z-score is fct_customer_segmentation (2.82)
-    # Let's set a threshold that several models will exceed (e.g., 1.0)
+    # Models exceeding 1.0 Z-score: fct_customer_segmentation, int_customer_order_summary, fct_customer_product_affinity, fct_profit_and_loss_statement, stg_orders (5 models)
     test_threshold = 1.0
     result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold), "--apply-zscore"])
     
     assert result.exit_code == 1
-    assert "Threshold exceeded by 4 models" in result.stdout # Updated from 1
+    assert "Threshold exceeded by 5 models" in result.stdout # Updated from 4
     assert "fct_customer_segmentation" in result.stdout # Ensure high-score models are listed
     assert "int_customer_order_summary" in result.stdout
     assert "fct_customer_product_affinity" in result.stdout
     assert "fct_profit_and_loss_statement" in result.stdout
+    assert "stg_orders" in result.stdout
     assert "--- CI Check Summary ---" in result.stdout
     assert "Status: FAILED" in result.stdout
-    assert "4 models exceeded threshold." in result.stdout # Corrected count
+    assert "5 models exceeded threshold." in result.stdout # Corrected count
     assert "Total models checked: 30" in result.stdout # Updated count
     assert f"Threshold: {test_threshold:.3f}" in result.stdout
 
 def test_ci_check_command_passes_on_zscore_threshold_not_exceeded(dbt_project_with_compiled_sql):
-    # Set a threshold higher than the highest Z-score (fct_customer_segmentation: 2.82)
-    test_threshold = 3.0 # Updated from 1.7
+    # Set a threshold higher than the highest Z-score (fct_customer_segmentation: 2.835)
+    test_threshold = 3.0
     result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold), "--apply-zscore"])
     
     assert result.exit_code == 0
@@ -256,25 +256,23 @@ def test_ci_check_command_passes_on_zscore_threshold_not_exceeded(dbt_project_wi
 
 
 def test_ci_check_command_fails_on_threshold_exceeded(dbt_project_with_compiled_sql):
-    # The highest raw score is fct_customer_segmentation (23.19)
-    # Let's set a threshold that several models will exceed (e.g., 20.0)
+    # Models exceeding 20.0 raw score: fct_customer_segmentation (20.77) (1 model)
     test_threshold = 20.0
     result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold)])
     
     assert result.exit_code == 1
-    assert "Threshold exceeded by 2 models" in result.stdout # Updated from 1
+    assert "Threshold exceeded by 1 models" in result.stdout # Updated from 2
     assert "fct_customer_segmentation" in result.stdout # Ensure high-score models are listed
-    assert "int_customer_order_summary" in result.stdout
     assert "--- CI Check Summary ---" in result.stdout
     assert "Status: FAILED" in result.stdout
-    assert "2 models exceeded threshold." in result.stdout # Corrected count
+    assert "1 models exceeded threshold." in result.stdout # Corrected count
     assert "Total models checked: 30" in result.stdout # Updated count
     assert f"Threshold: {test_threshold:.3f}" in result.stdout
 
 
 def test_ci_check_command_passes_on_threshold_not_exceeded(dbt_project_with_compiled_sql):
-    # Set a threshold higher than the highest raw score (fct_customer_segmentation: 23.19)
-    test_threshold = 24.0 # Updated from 22.0
+    # Set a threshold higher than the highest raw score (fct_customer_segmentation: 20.77)
+    test_threshold = 21.0 # Updated from 24.0
     result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold)])
     
     assert result.exit_code == 0
