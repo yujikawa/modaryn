@@ -13,7 +13,7 @@ class TerminalOutput(OutputGenerator):
     def generate_report(self, project: DbtProject, problematic_models: Optional[List[DbtModel]] = None, threshold: Optional[float] = None) -> Optional[str]:
         table = Table(title="dbt Models Score and Scan Results")
         table.add_column("Rank", justify="right", style="cyan", no_wrap=True)
-        table.add_column("Model Name", justify="left", style="magenta")
+        table.add_column("Model Name", justify="left", style="white")
         table.add_column("Score", justify="right", style="green")
         table.add_column("JOINs", justify="right", style="blue")
         table.add_column("CTEs", justify="right", style="blue")
@@ -60,13 +60,14 @@ class TerminalOutput(OutputGenerator):
         
         self.console.print(table)
 
-        # Add summary
-        self.console.print("\n--- CI Check Summary ---")
-        if problematic_models:
-            self.console.print(f"[bold red]Status: FAILED[/bold red] - {len(problematic_models)} models exceeded threshold.")
-        else:
-            self.console.print("[bold green]Status: PASSED[/bold green] - All models are within the defined threshold.")
-        self.console.print(f"Total models checked: {len(project.models)}")
         if threshold is not None:
+        # Add summary
+            self.console.print("\n--- CI Check Summary ---")
+            if problematic_models:
+                self.console.print(f"[bold red]Status: FAILED[/bold red] - {len(problematic_models)} models exceeded threshold.")
+            else:
+                self.console.print("[bold green]Status: PASSED[/bold green] - All models are within the defined threshold.")
+            self.console.print(f"Total models checked: {len(project.models)}")
+
             self.console.print(f"Threshold: {threshold:.3f}")
         return None

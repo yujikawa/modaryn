@@ -27,11 +27,13 @@ modaryn score --project-path . --dialect bigquery --config custom_weights.yml --
 Checks dbt model complexity against a defined Z-score threshold for CI pipelines. Exits with code 1 if any model's score exceeds the threshold, 0 otherwise. This command is designed for automated quality gates in your CI/CD workflows.
 
 ```bash
-modaryn ci-check --project-path . --threshold 1.5 --format terminal
+modaryn ci-check --project-path . --threshold 1.0 --format terminal
 ```
 - `--project-path`: Path to the dbt project directory.
 - `--threshold`: The maximum allowed Z-score for models. CI will fail if any model exceeds this.
 - `--format`: Output format (`terminal`, `markdown`, `html`). Defaults to `terminal`.
+
+![modaryn](./docs/assets/result2.png)
 
 ---
 
