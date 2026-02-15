@@ -59,7 +59,7 @@ class ManifestLoader:
 
                 model = DbtModel(
                     unique_id=unique_id,
-                    model_name=node_data.get("name", ""),
+                    model_name=node_data.get("model_name", ""),
                     file_path=Path(node_data.get("path", "")),
                     raw_sql=compiled_sql, # Use compiled SQL
                     dependencies=self._get_node_dependencies(node_data),

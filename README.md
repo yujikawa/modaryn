@@ -13,7 +13,7 @@ uv pip install -e .
 ```
 
 ### Usage
-The `modaryn` CLI provides a single command: `score`.
+The `modaryn` CLI provides the following commands:
 
 #### `score` command
 Analyzes and scores dbt models based on complexity and importance, displaying combined scan and score information.
@@ -22,6 +22,16 @@ modaryn score --project-path . --dialect bigquery --config custom_weights.yml --
 ```
 
 ![modaryn](./docs/assets/result.png)
+
+#### `ci-check` command
+Checks dbt model complexity against a defined Z-score threshold for CI pipelines. Exits with code 1 if any model's score exceeds the threshold, 0 otherwise. This command is designed for automated quality gates in your CI/CD workflows.
+
+```bash
+modaryn ci-check --project-path . --threshold 1.5 --format terminal
+```
+- `--project-path`: Path to the dbt project directory.
+- `--threshold`: The maximum allowed Z-score for models. CI will fail if any model exceeds this.
+- `--format`: Output format (`terminal`, `markdown`, `html`). Defaults to `terminal`.
 
 ---
 
@@ -35,10 +45,20 @@ uv pip install -e .
 ```
 
 ### 使い方 (Usage)
-`modaryn` CLIは主に `score` の1つのコマンドを提供します。
+`modaryn` CLIは以下のコマンドを提供します。
 
 #### `score` コマンド
 複雑さと重要性に基づいてdbtモデルを分析およびスコアリングし、スキャンとスコアの情報を組み合わせたレポートを表示します。
 ```bash
 modaryn score --project-path . --dialect bigquery --config custom_weights.yml --format html --output modaryn_report.html
 ```
+
+#### `ci-check` コマンド
+CIパイプライン向けに、dbtモデルの複雑性を定義されたZスコア閾値と照合してチェックします。いずれかのモデルのスコアが閾値を超過した場合、終了コード1で終了し、そうでない場合は0で終了します。このコマンドは、CI/CDワークフローにおける自動化された品質ゲートのために設計されています。
+
+```bash
+modaryn ci-check --project-path . --threshold 1.5 --format terminal
+```
+- `--project-path`: dbtプロジェクトディレクトリへのパス。
+- `--threshold`: モデルに許容される最大Zスコア閾値。いずれかのモデルがこの値を超過するとCIは失敗します。
+- `--format`: 出力フォーマット (`terminal`、`markdown`、`html`)。デフォルトは`terminal`です。

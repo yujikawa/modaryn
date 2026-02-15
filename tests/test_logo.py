@@ -40,6 +40,9 @@ def test_display_logo_and_version_prints_logo_and_version(mock_console, mock_log
     version_string = "1.2.3"
     display_logo_and_version(version_string)
     
-    # Assert that console.print was called with the logo content and then the version
-    mock_console.print.assert_any_call(mock_logo_file.read_text())
-    mock_console.print.assert_any_call(f"[bold cyan]Version: {version_string}[/bold cyan]")
+    # Assert that console.print was called with the logo content and correct style
+    mock_console.print.assert_any_call(mock_logo_file.read_text(), style="bold cyan")
+    # Assert the description print
+    mock_console.print.assert_any_call("Modaryn analyzes dbt projects to score model complexity and structural importance,helping teams identify high-risk and high-impact data models.")
+    # Assert that console.print was called with the version string and correct style
+    mock_console.print.assert_any_call(f"[bold yellow]Version: {version_string}[/bold yellow]")
