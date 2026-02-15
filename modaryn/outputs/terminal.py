@@ -1,8 +1,8 @@
 from rich.console import Console
 from rich.table import Table
-from typing import Optional
+from typing import Optional, List
 
-from ..domain.model import DbtProject
+from ..domain.model import DbtProject, DbtModel
 from . import OutputGenerator
 
 
@@ -10,7 +10,7 @@ class TerminalOutput(OutputGenerator):
     def __init__(self):
         self.console = Console()
 
-    def generate_report(self, project: DbtProject) -> Optional[str]:
+    def generate_report(self, project: DbtProject, problematic_models: Optional[List[DbtModel]] = None, threshold: Optional[float] = None) -> Optional[str]:
         table = Table(title="dbt Models Score and Scan Results")
         table.add_column("Rank", justify="right", style="cyan", no_wrap=True)
         table.add_column("Model Name", justify="left", style="magenta")
@@ -28,7 +28,11 @@ class TerminalOutput(OutputGenerator):
             reverse=True,
         )
 
+        problematic_model_names = {model.model_name for model in problematic_models} if problematic_models else set()
+
         for i, model in enumerate(sorted_models):
+            model_name_style = "[red]" if model.model_name in problematic_model_names else ""
+            
             if model.complexity:
                 join_count = str(model.complexity.join_count)
                 cte_count = str(model.complexity.cte_count)
@@ -44,7 +48,7 @@ class TerminalOutput(OutputGenerator):
 
             table.add_row(
                 str(i + 1),
-                model.model_name,
+                f"{model_name_style}{model.model_name}[/]" if model_name_style else model.model_name,
                 f"{model.score:.2f}" if model.score is not None else "N/A",
                 join_count,
                 cte_count,
@@ -55,4 +59,14 @@ class TerminalOutput(OutputGenerator):
             )
         
         self.console.print(table)
+
+        # Add summary
+        self.console.print("\n--- CI Check Summary ---")
+        if problematic_models:
+            self.console.print(f"[bold red]Status: FAILED[/bold red] - {len(problematic_models)} models exceeded threshold.")
+        else:
+            self.console.print("[bold green]Status: PASSED[/bold green] - All models are within the defined threshold.")
+        self.console.print(f"Total models checked: {len(project.models)}")
+        if threshold is not None:
+            self.console.print(f"Threshold: {threshold:.3f}")
         return None

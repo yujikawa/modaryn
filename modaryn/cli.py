@@ -183,9 +183,17 @@ def ci_check(
     scorer = Scorer(config)
     scorer.score_project(project)
 
-    # Placeholder for actual threshold checking logic - will be implemented in subsequent tasks
-    # For now, just make it pass by default if no errors
-    console.print("[bold green]Threshold check passed (placeholder logic).[/bold green]")
+    problematic_models = [model for model in project.models.values() if model.score > threshold]
+
+    exit_code: int
+    if problematic_models:
+        console.print(f"[bold red]❌ Threshold exceeded by {len(problematic_models)} models:[/bold red]")
+        for model in problematic_models:
+            console.print(f"  - [red]{model.model_name}[/red] (Score: {model.score:.3f} > Threshold: {threshold:.3f})")
+        exit_code = 1
+    else:
+        console.print("[bold green]✅ All models are within the defined threshold.[/bold green]")
+        exit_code = 0
 
     output_generator: OutputGenerator
     if format == OutputFormat.terminal:
@@ -198,7 +206,7 @@ def ci_check(
         console.print(f"[bold red]Unsupported output format: {format.value}[/bold red]")
         raise typer.Exit(code=1)
     
-    report_content = output_generator.generate_report(project)
+    report_content = output_generator.generate_report(project, problematic_models, threshold)
 
     if report_content:
         if output:
@@ -211,8 +219,7 @@ def ci_check(
         if output:
             console.print("[bold yellow]Warning: --output is only supported for file-based formats. Printing to terminal.[/bold yellow]")
 
-    # For now, always exit with 0 (success) until threshold logic is implemented
-    raise typer.Exit(code=0)
+    raise typer.Exit(code=exit_code)
 
 
 if __name__ == "__main__":
