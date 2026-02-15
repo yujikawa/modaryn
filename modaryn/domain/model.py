@@ -2,8 +2,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Dict, Optional
 
-import numpy as np
-
 
 from modaryn.analyzers.sql_complexity import SqlComplexityResult
 
