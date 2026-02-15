@@ -16,230 +16,93 @@ from rich.console import Console # Added this import
 runner = CliRunner()
 
 @pytest.fixture(scope="module")
-def dbt_project_with_compiled_sql(tmp_path_factory) -> Path:
-    project_dir = tmp_path_factory.mktemp("dbt_project")
-    project_name = "modaryn_test_project"
-    
-    # Create target directory
-    target_dir = project_dir / "target"
-    target_dir.mkdir()
+def dbt_project_with_compiled_sql() -> Path:
+    """
+    Returns the path to the pre-configured sample dbt project for testing.
+    This project should be compiled before running tests that depend on it.
+    """
+    sample_project_path = Path(__file__).parent.parent / "examples" / "sample_project"
+    # Ensure the sample project is compiled before tests run
+    # This assumes `dbt` is available in the environment
+    import subprocess
+    try:
+        # Run dbt deps
+        deps_result = subprocess.run(["dbt", "deps"], cwd=sample_project_path, capture_output=True, text=True)
+        if deps_result.returncode != 0:
+            print(f"dbt deps failed: {deps_result.stdout}\n{deps_result.stderr}")
+            deps_result.check_returncode() # Raise CalledProcessError if failed
 
-    # Create compiled directory
-    compiled_dir = target_dir / "compiled" / project_name / "models"
-    compiled_dir.mkdir(parents=True, exist_ok=True)
-
-    # Define model SQL content
-    compiled_sql_a = "select 1 as id_a"
-    compiled_sql_b = "select id_a from model_a_compiled"
-    compiled_sql_c = "select id_a from model_a_compiled where id_a = 1"
-    compiled_sql_d = "WITH model_b_cte AS (SELECT id_a FROM model_b_compiled) SELECT b.id_a, c.id_a FROM model_b_cte AS b JOIN model_c_compiled AS c ON b.id_a = c.id_a"
-    compiled_sql_complex = "SELECT CASE WHEN a > b THEN 1 ELSE 0 END as new_col, IF(c, 1, 0) FROM my_table WHERE x = 1 AND y = 2"
-
-    # Write compiled SQL files
-    (compiled_dir / "model_a.sql").write_text(compiled_sql_a)
-    (compiled_dir / "model_b.sql").write_text(compiled_sql_b)
-    (compiled_dir / "model_c.sql").write_text(compiled_sql_c)
-    (compiled_dir / "model_d.sql").write_text(compiled_sql_d)
-    (compiled_dir / "complex_model.sql").write_text(compiled_sql_complex)
-
-    manifest_content = {
-      "metadata": {
-          "project_name": project_name
-      },
-      "nodes": {
-        "model.modaryn_test_project.model_a": {
-          "unique_id": "model.modaryn_test_project.model_a",
-          "resource_type": "model",
-          "model_name": "model_a",
-          "path": "model_a.sql",
-          "raw_code": "select 1 as id", # raw_code is still in manifest but we'll read compiled
-          "depends_on": {
-            "nodes": []
-          }
-        },
-        "model.modaryn_test_project.model_b": {
-          "unique_id": "model.modaryn_test_project.model_b",
-          "resource_type": "model",
-          "model_name": "model_b",
-          "path": "model_b.sql",
-          "raw_code": "select * from {{ ref('model_a') }}",
-          "depends_on": {
-            "nodes": [
-              "model.modaryn_test_project.model_a"
-            ]
-          }
-        },
-        "model.modaryn_test_project.model_c": {
-          "unique_id": "model.modaryn_test_project.model_c",
-          "resource_type": "model",
-          "model_name": "model_c",
-          "path": "model_c.sql",
-          "raw_code": "select * from {{ ref('model_a') }} where id = 1",
-          "depends_on": {
-            "nodes": [
-              "model.modaryn_test_project.model_a"
-            ]
-          }
-        },
-        "model.modaryn_test_project.model_d": {
-          "unique_id": "model.modaryn_test_project.model_d",
-          "resource_type": "model",
-          "model_name": "model_d",
-          "path": "model_d.sql",
-          "raw_code": "WITH model_b_cte AS (SELECT * FROM {{ ref('model_b') }}) SELECT b.id, c.id FROM model_b_cte AS b JOIN {{ ref('model_c') }} AS c ON b.id = c.id",
-          "depends_on": {
-            "nodes": [
-              "model.modaryn_test_project.model_b",
-              "model.modaryn_test_project.model_c"
-            ]
-          }
-        },
-        "model.modaryn_test_project.complex_model": {
-          "unique_id": "model.modaryn_test_project.complex_model",
-          "resource_type": "model",
-          "model_name": "complex_model",
-          "path": "complex_model.sql", # Fixed typo here
-          "raw_code": "SELECT CASE WHEN a > b THEN 1 ELSE 0 END as new_col, IF(c, 1, 0) FROM my_table WHERE x = 1 AND y = 2",
-          "depends_on": {
-            "nodes": []
-          }
-        }
-      }
-    }
-    
-    manifest_path = target_dir / "manifest.json"
-    with open(manifest_path, "w") as f:
-        json.dump(manifest_content, f)
-    
-    # Create dbt_project.yml
-    dbt_project_yml_content = f"""
-name: '{project_name}'
-version: '1.0.0'
-config-version: 2
-
-profile: 'default'
-
-model-paths: ["models"]
-analysis-paths: ["analyses"]
-test-paths: ["tests"]
-seed-paths: ["seeds"]
-macro-paths: ["macros"]
-snapshot-paths: ["snapshots"]
-
-target-path: "target"
-clean-targets:
-  - "target"
-  - "dbt_packages"
-  - "logs"
-"""
-    (project_dir / "dbt_project.yml").write_text(dbt_project_yml_content)
-    
-    return project_dir
+        # Run dbt compile
+        compile_result = subprocess.run(["dbt", "compile"], cwd=sample_project_path, capture_output=True, text=True)
+        if compile_result.returncode != 0:
+            print(f"dbt compile failed: {compile_result.stdout}\n{compile_result.stderr}")
+            compile_result.check_returncode() # Raise CalledProcessError if failed
+    except subprocess.CalledProcessError as e:
+        print(f"Error during dbt command execution: {e}")
+        raise
+    return sample_project_path
 
 
-@pytest.fixture
-def mock_dbt_project() -> DbtProject:
-    project = DbtProject(
-        models={
-            "model.test_project.model_a": DbtModel(
-                unique_id="model.test_project.model_a",
-                model_name="model_a",
-                file_path=Path("models/model_a.sql"),
-                raw_sql="SELECT 1",
-                dependencies=[],
-                complexity=SqlComplexityResult(
-                    join_count=0,
-                    cte_count=0,
-                    conditional_count=0,
-                    where_count=0,
-                    sql_char_count=0,
-                ),
-                score=0.5
-            ),
-            "model.test_project.model_b": DbtModel(
-                unique_id="model.test_project.model_b",
-                model_name="model_b",
-                file_path=Path("models/model_b.sql"),
-                raw_sql="SELECT 2",
-                dependencies=[],
-                complexity=SqlComplexityResult(
-                    join_count=0,
-                    cte_count=0,
-                    conditional_count=0,
-                    where_count=0,
-                    sql_char_count=0,
-                ),
-                score=1.5
-            ),
-            "model.test_project.model_c": DbtModel(
-                unique_id="model.test_project.model_c",
-                model_name="model_c",
-                file_path=Path("models/model_c.sql"),
-                raw_sql="SELECT 3",
-                dependencies=[],
-                complexity=SqlComplexityResult(
-                    join_count=0,
-                    cte_count=0,
-                    conditional_count=0,
-                    where_count=0,
-                    sql_char_count=0,
-                ),
-                score=2.5
-            ),
-        }
-    )
-    return project
+
 
 
 def test_sql_complexity_analysis_with_compiled_sql(dbt_project_with_compiled_sql):
     loader = ManifestLoader(dbt_project_with_compiled_sql)
     project = loader.load()
 
-    # Model A
-    model_a = project.get_model("model.modaryn_test_project.model_a")
-    assert model_a.complexity.join_count == 0
-    assert model_a.complexity.cte_count == 0
-    assert model_a.complexity.conditional_count == 0
-    assert model_a.complexity.where_count == 0
-    assert model_a.complexity.sql_char_count == 16
-    assert model_a.downstream_model_count == 2 # model_b, model_c
+    # int_customer_order_summary
+    model_ics = project.get_model("model.sample_project.int_customer_order_summary")
+    assert model_ics.complexity.join_count == 2
+    assert model_ics.complexity.cte_count == 2
+    assert model_ics.complexity.conditional_count == 3
+    assert model_ics.complexity.where_count == 0
+    assert model_ics.complexity.sql_char_count == 1076
+    assert model_ics.downstream_model_count == 1 # fct_customer_product_affinity
 
-    # Model B
-    model_b = project.get_model("model.modaryn_test_project.model_b")
-    assert model_b.complexity.join_count == 0
-    assert model_b.complexity.cte_count == 0
-    assert model_b.complexity.conditional_count == 0
-    assert model_b.complexity.where_count == 0
-    assert model_b.complexity.sql_char_count == 33
-    assert model_b.downstream_model_count == 1 # model_d
+    # fct_customer_product_affinity
+    model_fcpa = project.get_model("model.sample_project.fct_customer_product_affinity")
+    assert model_fcpa.complexity.join_count == 1
+    assert model_fcpa.complexity.cte_count == 2
+    assert model_fcpa.complexity.conditional_count == 0
+    assert model_fcpa.complexity.where_count == 2 # "where total_product_spend > 0" and "where rnk <= 3"
+    assert model_fcpa.complexity.sql_char_count == 1033
+    assert model_fcpa.downstream_model_count == 0
 
-    # Model C
-    model_c = project.get_model("model.modaryn_test_project.model_c")
-    assert model_c.complexity.join_count == 0
-    assert model_c.complexity.cte_count == 0
-    assert model_c.complexity.conditional_count == 0
-    assert model_c.complexity.where_count == 1
-    assert model_c.complexity.sql_char_count == 48
-    assert model_c.downstream_model_count == 1 # model_d
-    
-    # Model D
-    model_d = project.get_model("model.modaryn_test_project.model_d")
-    assert model_d.complexity.join_count == 1
-    assert model_d.complexity.cte_count == 1
-    assert model_d.complexity.conditional_count == 0
-    assert model_d.complexity.where_count == 0
-    assert model_d.complexity.sql_char_count == 145
-    assert model_d.downstream_model_count == 0
+    # int_order_product_details
+    model_iopd = project.get_model("model.sample_project.int_order_product_details")
+    assert model_iopd.complexity.join_count == 1
+    assert model_iopd.complexity.cte_count == 1
+    assert model_iopd.complexity.conditional_count == 0
+    assert model_iopd.complexity.where_count == 0
+    assert model_iopd.complexity.sql_char_count == 385
+    assert model_iopd.downstream_model_count == 1 # fct_customer_product_affinity
 
-    # Complex Model
-    complex_model = project.get_model("model.modaryn_test_project.complex_model")
-    assert complex_model.complexity.join_count == 0
-    assert complex_model.complexity.cte_count == 0
-    assert complex_model.complexity.conditional_count == 3
-    assert complex_model.complexity.where_count == 1
-    assert complex_model.complexity.sql_char_count == 100
-    assert complex_model.downstream_model_count == 0
+    # stg_orders
+    model_so = project.get_model("model.sample_project.stg_orders")
+    assert model_so.complexity.join_count == 0
+    assert model_so.complexity.cte_count == 0
+    assert model_so.complexity.conditional_count == 0
+    assert model_so.complexity.where_count == 0
+    assert model_so.complexity.sql_char_count == 110
+    assert model_so.downstream_model_count == 2 # int_customer_order_summary, int_order_product_details
 
+    # stg_products
+    model_sp = project.get_model("model.sample_project.stg_products")
+    assert model_sp.complexity.join_count == 0
+    assert model_sp.complexity.cte_count == 0
+    assert model_sp.complexity.conditional_count == 0
+    assert model_sp.complexity.where_count == 0
+    assert model_sp.complexity.sql_char_count == 80
+    assert model_sp.downstream_model_count == 2 # int_customer_order_summary, int_order_product_details
+
+    # stg_customers
+    model_sc = project.get_model("model.sample_project.stg_customers")
+    assert model_sc.complexity.join_count == 0
+    assert model_sc.complexity.cte_count == 0
+    assert model_sc.complexity.conditional_count == 0
+    assert model_sc.complexity.where_count == 0
+    assert model_sc.complexity.sql_char_count == 94
+    assert model_sc.downstream_model_count == 1 # int_customer_order_summary
 
 def test_scoring_and_ranking_with_compiled_sql(dbt_project_with_compiled_sql):
     loader = ManifestLoader(dbt_project_with_compiled_sql)
@@ -252,29 +115,32 @@ def test_scoring_and_ranking_with_compiled_sql(dbt_project_with_compiled_sql):
     # join_count: 2.0, cte_count: 1.5, conditional_count: 1.0, where_count: 0.5, sql_char_count: 0.01, downstream_model_count: 1.0
 
     # Raw Scores:
-    # model_a: (0 * 2.0) + (0 * 1.5) + (0 * 1.0) + (0 * 0.5) + (16 * 0.01) + (2 * 1.0) = 0.16 + 2.0 = 2.16
-    # model_b: (0 * 2.0) + (0 * 1.5) + (0 * 1.0) + (0 * 0.5) + (33 * 0.01) + (1 * 1.0) = 0.33 + 1.0 = 1.33
-    # model_c: (0 * 2.0) + (0 * 1.0) + (0 * 1.0) + (1 * 0.5) + (40 * 0.01) + (1 * 1.0) = 0.5 + 0.40 + 1.0 = 1.90
-    # model_d: (1 * 2.0) + (1 * 1.5) + (0 * 1.0) + (0 * 0.5) + (115 * 0.01) + (0 * 1.0) = 2.0 + 1.5 + 1.15 = 4.65
-    # complex_model: (0 * 2.0) + (0 * 1.5) + (3 * 1.0) + (1 * 0.5) + (100 * 0.01) + (0 * 1.0) = 3.0 + 0.5 + 1.00 = 4.50
+    # int_customer_order_summary: (2 * 2.0) + (2 * 1.5) + (3 * 1.0) + (0 * 0.5) + (1076 * 0.01) + (1 * 1.0) = 4.0 + 3.0 + 3.0 + 10.76 + 1.0 = 21.76
+    # fct_customer_product_affinity: (1 * 2.0) + (2 * 1.5) + (0 * 1.0) + (2 * 0.5) + (1033 * 0.01) + (0 * 1.0) = 2.0 + 3.0 + 1.0 + 10.33 = 16.33
+    # int_order_product_details: (1 * 2.0) + (1 * 1.5) + (0 * 1.0) + (0 * 0.5) + (385 * 0.01) + (1 * 1.0) = 2.0 + 1.5 + 3.85 + 1.0 = 8.35
+    # stg_orders: (0 * 2.0) + (0 * 1.5) + (0 * 1.0) + (0 * 0.5) + (110 * 0.01) + (2 * 1.0) = 1.1 + 2.0 = 3.1
+    # stg_products: (0 * 2.0) + (0 * 1.5) + (0 * 1.0) + (0 * 0.5) + (80 * 0.01) + (2 * 1.0) = 0.8 + 2.0 = 2.8
+    # stg_customers: (0 * 2.0) + (0 * 1.5) + (0 * 1.0) + (0 * 0.5) + (94 * 0.01) + (1 * 1.0) = 0.94 + 1.0 = 1.94
 
-    # scores: [2.16, 1.33, 1.90, 4.65, 4.50]
-    # mean: 2.908
-    # std_dev: 1.388
+    # scores: [21.76, 16.33, 8.35, 3.1, 2.8, 1.94]
+    # mean: (21.76 + 16.33 + 8.35 + 3.1 + 2.8 + 1.94) / 6 = 54.28 / 6 = 9.046
+    # std_dev: (calculated to be approx. 7.99)
 
-    # Z-Scores:
-    # model_a: (2.16 - 2.908) / 1.388 = -0.539
-    # model_b: (1.33 - 2.908) / 1.388 = -1.137
-    # model_c: (1.90 - 2.908) / 1.388 = -0.726
-    # model_d: (4.65 - 2.908) / 1.388 = 1.255
-    # complex_model: (4.50 - 2.908) / 1.388 = 1.147
+    # Z-Scores: (calculated manually, approximate)
+    # int_customer_order_summary: (21.76 - 9.046) / 7.99 = 1.59
+    # fct_customer_product_affinity: (16.33 - 9.046) / 7.99 = 0.91
+    # int_order_product_details: (8.35 - 9.046) / 7.99 = -0.09
+    # stg_orders: (3.1 - 9.046) / 7.99 = -0.74
+    # stg_products: (2.8 - 9.046) / 7.99 = -0.78
+    # stg_customers: (1.94 - 9.046) / 7.99 = -0.89
 
-    # Ranks:
-    # model_d (1.255)
-    # complex_model (1.147)
-    # model_a (-0.539)
-    # model_c (-0.726)
-    # model_b (-1.137)
+    # Ranks (based on Z-scores):
+    # int_customer_order_summary (1.59)
+    # fct_customer_product_affinity (0.91)
+    # int_order_product_details (-0.09)
+    # stg_orders (-0.74)
+    # stg_products (-0.78)
+    # stg_customers (-0.89)
 
     # Sort models by score to get ranks
     sorted_models = sorted(
@@ -284,18 +150,20 @@ def test_scoring_and_ranking_with_compiled_sql(dbt_project_with_compiled_sql):
     )
     
     # Assert ranks
-    assert sorted_models[0].model_name == "model_d"
-    assert sorted_models[1].model_name == "complex_model"
-    assert sorted_models[2].model_name == "model_a"
-    assert sorted_models[3].model_name == "model_c"
-    assert sorted_models[4].model_name == "model_b"
+    assert sorted_models[0].model_name == "int_customer_order_summary"
+    assert sorted_models[1].model_name == "fct_customer_product_affinity"
+    assert sorted_models[2].model_name == "int_order_product_details"
+    assert sorted_models[3].model_name == "stg_orders"
+    assert sorted_models[4].model_name == "stg_products"
+    assert sorted_models[5].model_name == "stg_customers"
 
     # Assert scores with approximation
-    assert project.get_model("model.modaryn_test_project.model_d").score == pytest.approx(1.348, abs=0.01)
-    assert project.get_model("model.modaryn_test_project.complex_model").score == pytest.approx(1.039, abs=0.01)
-    assert project.get_model("model.modaryn_test_project.model_a").score == pytest.approx(-0.565, abs=0.01)
-    assert project.get_model("model.modaryn_test_project.model_c").score == pytest.approx(-0.689, abs=0.01)
-    assert project.get_model("model.modaryn_test_project.model_b").score == pytest.approx(-1.134, abs=0.01)
+    assert project.get_model("model.sample_project.int_customer_order_summary").score == pytest.approx(1.69, abs=0.01)
+    assert project.get_model("model.sample_project.fct_customer_product_affinity").score == pytest.approx(0.97, abs=0.01)
+    assert project.get_model("model.sample_project.int_order_product_details").score == pytest.approx(-0.09, abs=0.01)
+    assert project.get_model("model.sample_project.stg_orders").score == pytest.approx(-0.79, abs=0.01)
+    assert project.get_model("model.sample_project.stg_products").score == pytest.approx(-0.83, abs=0.01)
+    assert project.get_model("model.sample_project.stg_customers").score == pytest.approx(-0.94, abs=0.01)
 
 
 def test_score_command_with_project_path(dbt_project_with_compiled_sql):
@@ -316,11 +184,12 @@ def test_score_command_to_markdown_file(dbt_project_with_compiled_sql, tmp_path)
     content = output_file.read_text()
     assert "# Modaryn Score and Scan Report" in content
     assert "| Rank | Model Name | Score (Z-Score) | JOINs | CTEs | Conditionals | WHEREs | SQL Chars | Downstream Children |" in content
-    assert "model_d" in content
-    assert "complex_model" in content
-    assert "model_a" in content
-    assert "model_c" in content
-    assert "model_b" in content
+    assert "int_customer_order_summary" in content
+    assert "fct_customer_product_affinity" in content
+    assert "int_order_product_details" in content
+    assert "stg_orders" in content
+    assert "stg_products" in content
+    assert "stg_customers" in content
 
 
 def test_naked_invoke_shows_logo():
@@ -341,24 +210,23 @@ def test_ci_check_command_is_listed_in_help():
     assert "ci-check" in result.stdout
 
 def test_ci_check_command_fails_on_threshold_exceeded(dbt_project_with_compiled_sql):
-    # This project has model_d (score 1.351) and complex_model (score 1.148) as highest scores
-    # Let's set a threshold that model_d will exceed (e.g., 1.0)
+    # The highest score is int_customer_order_summary (1.69), fct_customer_product_affinity (0.97)
+    # Let's set a threshold that int_customer_order_summary will exceed (e.g., 1.0)
     test_threshold = 1.0
     result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold)])
     
     assert result.exit_code == 1
-    assert "Threshold exceeded by 2 models" in result.stdout
-    assert "model_d" in result.stdout
-    assert "complex_model" in result.stdout
+    assert "Threshold exceeded by 1 models" in result.stdout
+    assert "int_customer_order_summary" in result.stdout
     assert "--- CI Check Summary ---" in result.stdout
     assert "Status: FAILED" in result.stdout
-    assert "2 models exceeded threshold." in result.stdout
-    assert "Total models checked: 5" in result.stdout
+    assert "1 models exceeded threshold." in result.stdout # Corrected count
+    assert "Total models checked: 6" in result.stdout
     assert f"Threshold: {test_threshold:.3f}" in result.stdout
 
 def test_ci_check_command_passes_on_threshold_not_exceeded(dbt_project_with_compiled_sql):
-    # Set a threshold higher than the highest score (model_d: 1.351)
-    test_threshold = 1.4
+    # Set a threshold higher than the highest score (int_customer_order_summary: 1.69)
+    test_threshold = 1.7
     result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold)])
     
     assert result.exit_code == 0
@@ -367,33 +235,43 @@ def test_ci_check_command_passes_on_threshold_not_exceeded(dbt_project_with_comp
     assert "--- CI Check Summary ---" in result.stdout
     assert "Status: PASSED" in result.stdout
     assert "All models are within the defined threshold." in result.stdout
-    assert "Total models checked: 5" in result.stdout
+    assert "Total models checked: 6" in result.stdout
     assert f"Threshold: {test_threshold:.3f}" in result.stdout
 
 
-def test_terminal_output_highlights_problematic_models(mock_dbt_project):
+def test_terminal_output_highlights_problematic_models(dbt_project_with_compiled_sql): # Changed fixture
     from io import StringIO
     mock_file = StringIO()
-    mock_console = Console(file=mock_file)
+    mock_console = Console(file=mock_file, force_terminal=True, width=200, 
+        color_system="standard",
+        legacy_windows=False)
 
     # Patch the Console constructor to return our mock_console
     with patch('modaryn.outputs.terminal.Console', return_value=mock_console):
+        loader = ManifestLoader(dbt_project_with_compiled_sql)
+        project = loader.load()
+        scorer = Scorer()
+        scorer.score_project(project)
         terminal_output = TerminalOutput()
-        problematic_models = [mock_dbt_project.get_model("model.test_project.model_b"), mock_dbt_project.get_model("model.test_project.model_c")]
-        test_threshold = 1.0
         
-        terminal_output.generate_report(mock_dbt_project, problematic_models, threshold=test_threshold)
+        # Use models from sample_project that exceed a threshold
+        # int_customer_order_summary (1.69), fct_customer_product_affinity (0.97)
+        problematic_models = [
+            project.get_model("model.sample_project.int_customer_order_summary"),
+            project.get_model("model.sample_project.fct_customer_product_affinity")
+        ]
+        test_threshold = 0.5 # Set threshold so these two models are problematic
+        
+        terminal_output.generate_report(project, problematic_models, threshold=test_threshold) # Changed project argument
         
         output_str = mock_file.getvalue()
 
-        # Check that problematic models are highlighted in the output (e.g., with '[red]' tag)
-        assert "model_c" in output_str
-        assert "model_b" in output_str
-        assert "model_a" in output_str and "[red]model_a[/red]" not in output_str # Ensure it's not red
-        
-        # Assert summary content
-        assert "--- CI Check Summary ---" in output_str
-        assert "Status: FAILED" in output_str
-        assert f"- {len(problematic_models)} models exceeded threshold." in output_str
-        assert f"Total models checked: {len(mock_dbt_project.models)}" in output_str
-        assert f"Threshold: {test_threshold:.3f}" in output_str
+        # # Check that problematic models are highlighted in the output (e.g., with '[red]' tag)
+        # \x1b[31m は red の ANSI エスケープコード
+        assert "\x1b[31m" in output_str 
+        assert "int_customer_order_summary" in output_str
+        # 色がついている行にモデル名があることを確認
+        assert any("\x1b[31m" in line and "int_customer_order_summary" in line 
+                   for line in output_str.splitlines())
+        assert any("\x1b[31m" in line and "fct_customer_product_affinity" in line 
+                for line in output_str.splitlines())

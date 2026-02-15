@@ -1,0 +1,7 @@
+# examples/sample_project/profiles.yml
+sample_project:
+  outputs:
+    dev:
+      type: duckdb
+      path: 'dev.duckdb'
+  target: dev

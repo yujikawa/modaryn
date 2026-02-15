@@ -24,4 +24,9 @@ test = [
 modaryn = "modaryn.cli:app"
 
 [tool.setuptools]
-packages = ["modaryn", "tests"]
+packages = ["modaryn"]
+
+[dependency-groups]
+dev = [
+    "dbt-duckdb>=1.10.0",
+]
