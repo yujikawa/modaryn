@@ -24,7 +24,11 @@ test = [
 modaryn = "modaryn.cli:app"
 
 [tool.setuptools]
+# 以前の回答で修正した packages.find の設定
 packages.find = { where = ["."], include = ["modaryn*"], exclude = ["tests*", "examples*"] }
+
+[tool.setuptools.package-data]
+"*" = ["*.txt", "*.yml", "*.yaml"]
 
 [dependency-groups]
 dev = [
