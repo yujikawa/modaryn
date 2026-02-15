@@ -18,8 +18,14 @@ The `modaryn` CLI provides the following commands:
 #### `score` command
 Analyzes and scores dbt models based on complexity and importance, displaying combined scan and score information.
 ```bash
-modaryn score --project-path . --dialect bigquery --config custom_weights.yml --format html --output modaryn_report.html
+modaryn score --project-path . --dialect bigquery --config custom_weights.yml --apply-zscore --format html --output modaryn_report.html
 ```
+- `--project-path` / `-p`: Path to the dbt project directory. (Type: Path, Default: `.`)
+- `--dialect` / `-d`: The SQL dialect to use for parsing (e.g., `bigquery`, `snowflake`, `redshift`). (Type: str, Default: `bigquery`)
+- `--config` / `-c`: Path to a custom weights configuration YAML file. (Type: Optional[Path], Default: `None`)
+- `--apply-zscore` / `-z`: Apply Z-score transformation to model scores. When this flag is present, scores will be Z-score normalized. Otherwise, raw scores are used. (Type: bool, Default: `False`)
+- `--format` / `-f`: Output format. Available options: `terminal`, `markdown`, `html`. (Type: OutputFormat, Default: `terminal`)
+- `--output` / `-o`: Path to write the output file. If not specified, output is printed to stdout. (Type: Optional[Path], Default: `None`)
 
 ##### Custom Weights Configuration (`custom_weights.yml`)
 You can customize the weights used for calculating complexity and importance scores by providing a YAML file via the `--config` flag. This allows you to fine-tune the scoring mechanism to better suit your project's needs.
@@ -45,13 +51,17 @@ Adjust these values to emphasize or de-emphasize certain aspects of complexity o
 ![modaryn](./docs/assets/result.png)
 
 #### `ci-check` command
-Checks dbt model complexity against a defined Z-score threshold for CI pipelines. Exits with code 1 if any model's score exceeds the threshold, 0 otherwise. This command is designed for automated quality gates in your CI/CD workflows.
+Checks dbt model complexity against a defined score threshold for CI pipelines. By default, it uses raw scores. Use `--apply-zscore` to check against Z-scores. Exits with code 1 if any model's score exceeds the threshold, 0 otherwise. This command is designed for automated quality gates in your CI/CD workflows.
 
 ```bash
-modaryn ci-check --project-path . --threshold 1.0 --format terminal
+modaryn ci-check --project-path . --threshold 20.0 --apply-zscore --format terminal
 ```
-- `--project-path`: Path to the dbt project directory.
-- `--threshold`: The maximum allowed Z-score for models. CI will fail if any model exceeds this.
-- `--format`: Output format (`terminal`, `markdown`, `html`). Defaults to `terminal`.
+- `--project-path` / `-p`: Path to the dbt project directory. (Type: Path, Default: `.`)
+- `--threshold` / `-t`: The maximum allowed score for models. CI will fail if any model exceeds this. (Type: float, Required)
+- `--dialect` / `-d`: The SQL dialect to use for parsing. (Type: str, Default: `bigquery`)
+- `--config` / `-c`: Path to a custom weights configuration YAML file. (Type: Optional[Path], Default: `None`)
+- `--apply-zscore` / `-z`: Use Z-scores instead of raw scores for threshold checking and output. When this flag is present, Z-scores are used. Otherwise, raw scores are used (default behavior). (Type: bool, Default: `False`)
+- `--format` / `-f`: Output format. Available options: `terminal`, `markdown`, `html`. (Type: OutputFormat, Default: `terminal`)
+- `--output` / `-o`: Path to write the output file. If not specified, output is printed to stdout. (Type: Optional[Path], Default: `None`)
 
 ![modaryn](./docs/assets/result2.png)

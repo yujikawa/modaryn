@@ -14,8 +14,14 @@ uv pip install git+https://github.com/yujikawa/modaryn.git
 #### `score` コマンド
 複雑さと重要性に基づいてdbtモデルを分析およびスコアリングし、スキャンとスコアの情報を組み合わせたレポートを表示します。
 ```bash
-modaryn score --project-path . --dialect bigquery --config custom_weights.yml --format html --output modaryn_report.html
+modaryn score --project-path . --dialect bigquery --config custom_weights.yml --apply-zscore --format html --output modaryn_report.html
 ```
+- `--project-path` / `-p`: dbtプロジェクトディレクトリへのパス。(型: Path, デフォルト: `.`)
+- `--dialect` / `-d`: 解析に使用するSQL方言 (`bigquery`, `snowflake`, `redshift`など)。(型: str, デフォルト: `bigquery`)
+- `--config` / `-c`: カスタム重み設定YAMLファイルへのパス。(型: Optional[Path], デフォルト: `None`)
+- `--apply-zscore` / `-z`: モデルスコアにZスコア変換を適用します。このフラグが存在する場合、スコアはZスコア正規化されます。それ以外の場合は、rawスコアが使用されます。(型: bool, デフォルト: `False`)
+- `--format` / `-f`: 出力フォーマット。利用可能なオプション: `terminal`, `markdown`, `html`。(型: OutputFormat, デフォルト: `terminal`)
+- `--output` / `-o`: 出力ファイルを書き込むパス。指定しない場合、出力は標準出力に表示されます。(型: Optional[Path], デフォルト: `None`)
 
 ##### カスタム重み設定 (`custom_weights.yml`)
 `--config` フラグを使用してYAMLファイルを指定することで、複雑性および重要性スコアの計算に使用される重みをカスタマイズできます。これにより、プロジェクトのニーズに合わせてスコアリングメカニズムを微調整できます。
@@ -41,13 +47,17 @@ importance:
 ![modaryn](./docs/assets/result.png)
 
 #### `ci-check` コマンド
-CIパイプライン向けに、dbtモデルの複雑性を定義されたZスコア閾値と照合してチェックします。いずれかのモデルのスコアが閾値を超過した場合、終了コード1で終了し、そうでない場合は0で終了します。このコマンドは、CI/CDワークフローにおける自動化された品質ゲートのために設計されています。
+CIパイプライン向けに、定義されたスコア閾値に対してdbtモデルの複雑性をチェックします。デフォルトではrawスコアを使用します。Zスコアでチェックするには`--apply-zscore`を使用します。いずれかのモデルのスコアが閾値を超過した場合、終了コード1で終了し、そうでない場合は0で終了します。このコマンドは、CI/CDワークフローにおける自動化された品質ゲートのために設計されています。
 
 ```bash
-modaryn ci-check --project-path . --threshold 1.5 --format terminal
+modaryn ci-check --project-path . --threshold 20.0 --apply-zscore --format terminal
 ```
-- `--project-path`: dbtプロジェクトディレクトリへのパス。
-- `--threshold`: モデルに許容される最大Zスコア閾値。いずれかのモデルがこの値を超過するとCIは失敗します。
-- `--format`: 出力フォーマット (`terminal`、`markdown`、`html`)。デフォルトは`terminal`です。
+- `--project-path` / `-p`: dbtプロジェクトディレクトリへのパス。(型: Path, デフォルト: `.`)
+- `--threshold` / `-t`: モデルに許容される最大スコア。いずれかのモデルがこの値を超過するとCIは失敗します。(型: float, 必須)
+- `--dialect` / `-d`: 解析に使用するSQL方言。(型: str, デフォルト: `bigquery`)
+- `--config` / `-c`: カスタム重み設定YAMLファイルへのパス。(型: Optional[Path], デフォルト: `None`)
+- `--apply-zscore` / `-z`: 閾値チェックと出力にrawスコアの代わりにZスコアを使用します。このフラグが存在する場合、Zスコアが使用されます。それ以外の場合、rawスコアが使用されます (デフォルトの動作)。(型: bool, デフォルト: `False`)
+- `--format` / `-f`: 出力フォーマット。利用可能なオプション: `terminal`, `markdown`, `html`。(型: OutputFormat, デフォルト: `terminal`)
+- `--output` / `-o`: 出力ファイルを書き込むパス。指定しない場合、出力は標準出力に表示されます。(型: Optional[Path], デフォルト: `None`)
 
 ![modaryn](./docs/assets/result2.png)
