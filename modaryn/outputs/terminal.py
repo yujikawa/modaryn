@@ -2,7 +2,7 @@ from rich.console import Console
 from rich.table import Table
 from typing import Optional, List
 
-from ..domain.model import DbtProject, DbtModel
+from ..domain.model import DbtProject, DbtModel, ScoreStatistics
 from . import OutputGenerator
 
 
@@ -10,7 +10,7 @@ class TerminalOutput(OutputGenerator):
     def __init__(self):
         self.console = Console()
 
-    def generate_report(self, project: DbtProject, problematic_models: Optional[List[DbtModel]] = None, threshold: Optional[float] = None, apply_zscore: bool = False) -> Optional[str]:
+    def generate_report(self, project: DbtProject, problematic_models: Optional[List[DbtModel]] = None, threshold: Optional[float] = None, apply_zscore: bool = False, statistics: Optional[ScoreStatistics] = None) -> Optional[str]:
         table = Table(title="dbt Models Score and Scan Results")
         table.add_column("Rank", justify="right", style="cyan", no_wrap=True)
         table.add_column("Model Name", justify="left", style="white")
@@ -70,6 +70,12 @@ class TerminalOutput(OutputGenerator):
             )
         
         self.console.print(table)
+
+        if statistics:
+            self.console.print("\n--- Score Statistics ---")
+            self.console.print(f"Mean: {statistics.mean:.3f}")
+            self.console.print(f"Median: {statistics.median:.3f}")
+            self.console.print(f"Standard Deviation: {statistics.std_dev:.3f}")
 
         if threshold is not None:
         # Add summary

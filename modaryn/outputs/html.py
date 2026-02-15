@@ -1,7 +1,7 @@
 from jinja2 import Environment, FileSystemLoader
 from typing import Optional, List
 
-from modaryn.domain.model import DbtProject, DbtModel
+from modaryn.domain.model import DbtProject, DbtModel, ScoreStatistics
 from . import OutputGenerator
 
 HTML_SCORE_TEMPLATE = """
@@ -52,6 +52,26 @@ HTML_SCORE_TEMPLATE = """
         </tr>
         {% endfor %}
     </table>
+
+    {% if statistics %}
+    <h2>Score Statistics</h2>
+    <ul>
+        <li>Mean: {{ "%.3f"|format(statistics.mean) }}</li>
+        <li>Median: {{ "%.3f"|format(statistics.median) }}</li>
+        <li>Standard Deviation: {{ "%.3f"|format(statistics.std_dev) }}</li>
+    </ul>
+    {% endif %}
+
+    {% if threshold is not none %}
+    <h2>CI Check Summary</h2>
+    <ul>
+        <li>Status: {% if problematic_models %}<span style="color: red;">FAILED</span>{% else %}<span style="color: green;">PASSED</span>{% endif %} - 
+            {% if problematic_models %}{{ problematic_models|length }} models exceeded threshold.{% else %}All models are within the defined threshold.{% endif %}</li>
+        <li>Total models checked: {{ models|length }}</li>
+        <li>Threshold: {{ "%.3f"|format(threshold) }}</li>
+    </ul>
+    {% endif %}
+
 </body>
 </html>
 """
@@ -61,7 +81,7 @@ class HtmlOutput(OutputGenerator):
     def __init__(self):
         self.env = Environment(loader=FileSystemLoader('.')) # Not used, but required
 
-    def generate_report(self, project: DbtProject, problematic_models: Optional[List[DbtModel]] = None, threshold: Optional[float] = None, apply_zscore: bool = False) -> Optional[str]:
+    def generate_report(self, project: DbtProject, problematic_models: Optional[List[DbtModel]] = None, threshold: Optional[float] = None, apply_zscore: bool = False, statistics: Optional[ScoreStatistics] = None) -> Optional[str]:
         sort_key = (lambda m: m.score) if apply_zscore else (lambda m: m.raw_score)
         
         sorted_models = sorted(
@@ -70,4 +90,4 @@ class HtmlOutput(OutputGenerator):
             reverse=True
         )
         template = self.env.from_string(HTML_SCORE_TEMPLATE)
-        return template.render(models=sorted_models, apply_zscore=apply_zscore)
+        return template.render(models=sorted_models, apply_zscore=apply_zscore, statistics=statistics, problematic_models=problematic_models, threshold=threshold)
