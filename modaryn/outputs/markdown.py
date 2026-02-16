@@ -13,8 +13,8 @@ class MarkdownOutput(OutputGenerator):
         lines = [
             "# Modaryn Score and Scan Report",
             "",
-            f"| Rank | Model Name | {score_header} | JOINs | CTEs | Conditionals | WHEREs | SQL Chars | Downstream Children |",
-            "|------|------------|-----------------|-------|------|--------------|--------|-----------|---------------------|",
+            f"| Rank | Model Name | {score_header} | Quality Score | JOINs | CTEs | Conditionals | WHEREs | SQL Chars | Downstream Children | Tests | Coverage (%) |",
+            "|------|------------|-----------------|---------------|-------|------|--------------|--------|-----------|---------------------|-------|--------------|",
         ]
         sorted_models = sorted(
             project.models.values(),
@@ -37,7 +37,7 @@ class MarkdownOutput(OutputGenerator):
 
             score_to_display = getattr(model, score_attr)
             lines.append(
-                f"| {i + 1} | {model.model_name} | {score_to_display:.2f} | {join_count} | {cte_count} | {conditional_count} | {where_count} | {sql_char_count} | {model.downstream_model_count} |"
+                f"| {i + 1} | {model.model_name} | {score_to_display:.2f} | {model.quality_score:.2f} | {join_count} | {cte_count} | {conditional_count} | {where_count} | {sql_char_count} | {model.downstream_model_count} | {model.test_count} | {model.column_test_coverage:.1f}% |"
             )
         
         if statistics:

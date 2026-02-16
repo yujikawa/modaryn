@@ -23,13 +23,16 @@ class TerminalOutput(OutputGenerator):
             table.add_column("Score (Raw)", justify="right", style="green")
             sort_key = lambda m: m.raw_score if m.raw_score is not None else -1
             score_attr = "raw_score"
-
+        
+        table.add_column("Quality Score", justify="right", style="magenta")
         table.add_column("JOINs", justify="right", style="blue")
         table.add_column("CTEs", justify="right", style="blue")
         table.add_column("Conditionals", justify="right", style="blue")
         table.add_column("WHEREs", justify="right", style="blue")
         table.add_column("SQL Chars", justify="right", style="blue")
         table.add_column("Downstream", justify="right", style="yellow")
+        table.add_column("Tests", justify="right", style="yellow")
+        table.add_column("Coverage (%)", justify="right", style="yellow")
 
         sorted_models = sorted(
             project.models.values(),
@@ -61,12 +64,15 @@ class TerminalOutput(OutputGenerator):
                 str(i + 1),
                 f"{model_name_style}{model.model_name}[/]" if model_name_style else model.model_name,
                 f"{score_to_display:.2f}" if score_to_display is not None else "N/A",
+                f"{model.quality_score:.2f}",
                 join_count,
                 cte_count,
                 conditional_count,
                 where_count,
                 sql_char_count,
                 str(model.downstream_model_count),
+                str(model.test_count),
+                f"{model.column_test_coverage:.1f}%",
             )
         
         self.console.print(table)

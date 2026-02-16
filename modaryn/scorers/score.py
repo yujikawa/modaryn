@@ -23,6 +23,8 @@ class Scorer:
                 weights["sql_complexity"].update(user_weights["sql_complexity"])
             if "importance" in user_weights:
                 weights["importance"].update(user_weights["importance"])
+            if "quality" in user_weights:
+                weights["quality"].update(user_weights["quality"])
         return weights
 
     def score_project(self, project: DbtProject, apply_zscore: bool = False):
@@ -61,6 +63,7 @@ class Scorer:
         """Calculates a raw, un-normalized score for a single model."""
         sql_complexity_weights = self.weights.get("sql_complexity", {})
         importance_weights = self.weights.get("importance", {})
+        quality_weights = self.weights.get("quality", {})
 
         complexity_score = 0
         if model.complexity:
@@ -74,5 +77,12 @@ class Scorer:
             model.downstream_model_count
             * importance_weights.get("downstream_model_count", 0)
         )
+        
+        quality_score = 0
+        quality_score += model.test_count * quality_weights.get("test_count", 0)
+        quality_score += model.column_test_coverage * quality_weights.get("column_coverage", 0)
+        model.quality_score = quality_score
+        
+        raw_score = complexity_score + importance_score - quality_score
 
-        return complexity_score + importance_score
+        return max(0, raw_score)
