@@ -91,12 +91,15 @@ HTML_SCORE_TEMPLATE = """
                 <th class="sortable" onclick="sortTable(0, 'number')" data-type="number">Rank</th>
                 <th class="sortable" onclick="sortTable(1, 'string')" data-type="string">Model Name</th>
                 <th class="sortable" onclick="sortTable(2, 'number')" data-type="number">{% if apply_zscore %}Score (Z-Score){% else %}Score (Raw){% endif %}</th>
-                <th class="sortable" onclick="sortTable(3, 'number')" data-type="number">JOINs</th>
-                <th class="sortable" onclick="sortTable(4, 'number')" data-type="number">CTEs</th>
-                <th class="sortable" onclick="sortTable(5, 'number')" data-type="number">Conditionals</th>
-                <th class="sortable" onclick="sortTable(6, 'number')" data-type="number">WHEREs</th>
-                <th class="sortable" onclick="sortTable(7, 'number')" data-type="number">SQL Chars</th>
-                <th class="sortable" onclick="sortTable(8, 'number')" data-type="number">Downstream Models</th>
+                <th class="sortable" onclick="sortTable(3, 'number')" data-type="number">Quality Score</th>
+                <th class="sortable" onclick="sortTable(4, 'number')" data-type="number">JOINs</th>
+                <th class="sortable" onclick="sortTable(5, 'number')" data-type="number">CTEs</th>
+                <th class="sortable" onclick="sortTable(6, 'number')" data-type="number">Conditionals</th>
+                <th class="sortable" onclick="sortTable(7, 'number')" data-type="number">WHEREs</th>
+                <th class="sortable" onclick="sortTable(8, 'number')" data-type="number">SQL Chars</th>
+                <th class="sortable" onclick="sortTable(9, 'number')" data-type="number">Downstream Models</th>
+                <th class="sortable" onclick="sortTable(10, 'number')" data-type="number">Tests</th>
+                <th class="sortable" onclick="sortTable(11, 'number')" data-type="number">Coverage (%)</th>
             </tr>
         </thead>
         <tbody id="models-tbody">
@@ -111,12 +114,15 @@ HTML_SCORE_TEMPLATE = """
                     {{ "%.2f"|format(model.raw_score) }}
                 {% endif %}
             </td>
+            <td>{{ "%.2f"|format(model.quality_score) }}</td>
             <td>{{ model.complexity.join_count if model.complexity else '0' }}</td>
             <td>{{ model.complexity.cte_count if model.complexity else '0' }}</td>
             <td>{{ model.complexity.conditional_count if model.complexity else '0' }}</td>
             <td>{{ model.complexity.where_count if model.complexity else '0' }}</td>
             <td>{{ model.complexity.sql_char_count if model.complexity else '0' }}</td>
             <td>{{ model.downstream_model_count }}</td>
+            <td>{{ model.test_count }}</td>
+            <td>{{ "%.1f"|format(model.column_test_coverage) }}</td>
         </tr>
         {% endfor %}
         </tbody>
@@ -159,8 +165,8 @@ HTML_SCORE_TEMPLATE = """
             
             let valA, valB;
             if (type === 'number') {
-                valA = parseFloat(cellA) || 0;
-                valB = parseFloat(cellB) || 0;
+                valA = parseFloat(cellA.replace(/,/g, '')) || 0;
+                valB = parseFloat(cellB.replace(/,/g, '')) || 0;
             } else {
                 valA = cellA.toLowerCase();
                 valB = cellB.toLowerCase();

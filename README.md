@@ -27,8 +27,25 @@ modaryn score --project-path . --dialect bigquery --config custom_weights.yml --
 - `--format` / `-f`: Output format. Available options: `terminal`, `markdown`, `html`. (Type: OutputFormat, Default: `terminal`)
 - `--output` / `-o`: Path to write the output file. If not specified, output is printed to stdout. (Type: Optional[Path], Default: `None`)
 
+#### dbt Test Coverage Evaluation
+`modaryn` now incorporates dbt test coverage into its scoring mechanism, providing a "Quality Score" for each model. This score reflects the extent to which a model's columns are covered by dbt tests, helping to identify models with insufficient testing.
+
+**How Quality Score is Calculated:**
+The `quality_score` is derived from two primary factors:
+1.  **Total Test Count (`test_count`):** The number of dbt tests directly associated with the model.
+2.  **Column Test Coverage (`column_coverage`):** The percentage of a model's columns that are covered by at least one dbt test.
+
+The formula for `quality_score` is:
+`quality_score = (model.test_count * weight_test_count) + (model.column_test_coverage * weight_column_coverage)`
+
+This `quality_score` is then factored into the overall raw score calculation as a subtractive component:
+`raw_score = complexity_score + importance_score - quality_score`
+This means that models with higher test coverage and more associated tests will have a lower overall risk score, indicating better quality and maintainability.
+
+The `score` command's output (terminal, markdown, and html formats) now includes new columns: "Quality Score", "Tests", and "Coverage (%)", providing detailed insights into the test status of each model.
+
 ##### Custom Weights Configuration (`custom_weights.yml`)
-You can customize the weights used for calculating complexity and importance scores by providing a YAML file via the `--config` flag. This allows you to fine-tune the scoring mechanism to better suit your project's needs.
+You can customize the weights used for calculating complexity, importance, and **quality** scores by providing a YAML file via the `--config` flag. This allows you to fine-tune the scoring mechanism to better suit your project's needs.
 
 The structure of the `custom_weights.yml` should mirror the default configuration found in `modaryn/config/default.yml`. Here's an example based on the default:
 
@@ -42,16 +59,40 @@ sql_complexity:
 
 importance:
   downstream_model_count: 1.0
+
+quality:
+  test_count: 0.5
+  column_coverage: 1.0
 ```
 - `sql_complexity`: Contains weights for various SQL complexity metrics. Adjusting these values will change how much each factor contributes to the overall complexity score.
 - `importance`: Contains weights for importance metrics. Currently, `downstream_model_count` is used to weigh models based on how many other models depend on them.
+- `quality`: Contains weights for test coverage metrics. `test_count` weighs models based on the number of associated tests, and `column_coverage` weighs them based on the percentage of tested columns.
 
-Adjust these values to emphasize or de-emphasize certain aspects of complexity or importance.
+Adjust these values to emphasize or de-emphasize certain aspects of complexity, importance, or quality.
 
 ##### Score Statistics
 The score commands will now output statistics (mean, median, standard deviation) of the calculated scores in the chosen output format. This provides a better understanding of the distribution of scores across your models.
 
 ![modaryn](./docs/assets/result.png)
+
+### Report Columns Explained
+
+The `score` command generates a detailed report with the following columns:
+
+| Column Header       | Description                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Rank`              | The position of the model when ranked by its overall score (highest score first).                                                                                                                                                                                                                                                                                                                                                           |
+| `Model Name`        | The name of the dbt model.                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `Score (Raw/Z-Score)` | The overall risk/complexity score of the model. This is a composite score based on complexity, importance, and quality. It can be displayed as a raw score or a Z-score (standardized score).                                                                                                                                                                                                                                                |
+| `Quality Score`     | A score reflecting the quality of the model based on its dbt test coverage. Higher quality scores indicate better test coverage, which reduces the overall risk score.                                                                                                                                                                                                                                                                      |
+| `JOINs`             | The count of `JOIN` operations in the compiled SQL of the model.                                                                                                                                                                                                                                                                                                                                                                            |
+| `CTEs`              | The count of Common Table Expressions (CTEs) defined in the compiled SQL of the model.                                                                                                                                                                                                                                                                                                                                                      |
+| `Conditionals`      | The count of conditional statements (e.g., `CASE WHEN`, `IF`) in the compiled SQL of the model.                                                                                                                                                                                                                                                                                                                                             |
+| `WHEREs`            | The count of `WHERE` clauses in the compiled SQL of the model.                                                                                                                                                                                                                                                                                                                                                                              |
+| `SQL Chars`         | The character count of the compiled SQL for the model, serving as a basic proxy for query size.                                                                                                                                                                                                                                                                                                                                             |
+| `Downstream Models` | The number of other dbt models that directly depend on this model. This indicates the model's structural importance.                                                                                                                                                                                                                                                                                                                          |
+| `Tests`             | The total number of dbt tests directly associated with this model.                                                                                                                                                                                                                                                                                                                                                                          |
+| `Coverage (%)`      | The percentage of this model's columns that are covered by at least one dbt test. This indicates the extent of test coverage at a column level.                                                                                                                                                                                                                                                                                               |
 
 #### `ci-check` command
 Checks dbt model complexity against a defined score threshold for CI pipelines. By default, it uses raw scores. Use `--apply-zscore` to check against Z-scores. Exits with code 1 if any model's score exceeds the threshold, 0 otherwise. This command is designed for automated quality gates in your CI/CD workflows.

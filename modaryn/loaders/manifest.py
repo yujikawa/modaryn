@@ -4,7 +4,7 @@ from typing import Dict
 import yaml
 
 from modaryn.analyzers.sql_complexity import SqlComplexityAnalyzer
-from modaryn.domain.model import DbtModel, DbtProject
+from modaryn.domain.model import DbtModel, DbtProject, DbtColumn
 
 
 class ManifestLoader:
@@ -38,13 +38,12 @@ class ManifestLoader:
             manifest_data = json.load(f)
 
         compiled_code_dir = self.project_path / "target" / "compiled" / project_name / "models"
-
-        models: Dict[str, DbtModel] = {}
         nodes = manifest_data.get("nodes", {})
-
+        
+        # Pass 1: Load models and their columns
+        models: Dict[str, DbtModel] = {}
         for unique_id, node_data in nodes.items():
             if node_data.get("resource_type") == "model":
-                # Construct path to compiled SQL file
                 model_relative_path = Path(node_data.get("path", ""))
                 compiled_sql_path = compiled_code_dir / model_relative_path
 
@@ -53,19 +52,39 @@ class ManifestLoader:
                     with open(compiled_sql_path, "r") as sql_f:
                         compiled_sql = sql_f.read()
                 else:
-                    # Fallback to raw_code if compiled SQL not found, or raise an error
-                    # For now, let's log a warning and use an empty string
                     print(f"Warning: Compiled SQL not found for model {node_data.get('name')} at {compiled_sql_path}. Using empty string for analysis.")
+
+                # Create DbtColumn objects
+                model_columns = {
+                    col_name: DbtColumn(name=col_name, description=col_data.get("description", ""))
+                    for col_name, col_data in node_data.get("columns", {}).items()
+                }
 
                 model = DbtModel(
                     unique_id=unique_id,
                     model_name=node_data.get("name", ""),
                     file_path=Path(node_data.get("path", "")),
-                    raw_sql=compiled_sql, # Use compiled SQL
+                    raw_sql=compiled_sql,
+                    columns=model_columns,
                     dependencies=self._get_node_dependencies(node_data),
-                    complexity=self.sql_analyzer.analyze(compiled_sql), # Analyze compiled SQL
+                    complexity=self.sql_analyzer.analyze(compiled_sql),
                 )
                 models[unique_id] = model
+
+        # Pass 2: Associate tests with models and columns
+        for unique_id, node_data in nodes.items():
+            if node_data.get("resource_type") == "test":
+                test_dependencies = node_data.get("depends_on", {}).get("nodes", [])
+                
+                for dep_id in test_dependencies:
+                    if dep_id in models:
+                        target_model = models[dep_id]
+                        target_model.test_count += 1
+                        
+                        column_name = node_data.get("column_name")
+                        if column_name and column_name in target_model.columns:
+                            target_model.columns[column_name].test_count += 1
+                        break # Assume test depends on only one model
 
         return DbtProject(models=models)
 

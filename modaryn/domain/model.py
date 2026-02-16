@@ -14,21 +14,45 @@ class ScoreStatistics:
 
 
 @dataclass
+class DbtColumn:
+    name: str
+    description: str
+    test_count: int = 0
+
+
+@dataclass
 class DbtModel:
     unique_id: str
     model_name: str
     file_path: Path
     raw_sql: str
+    columns: Dict[str, "DbtColumn"] = field(default_factory=dict)
     dependencies: List[str] = field(default_factory=list)
     parents: Dict[str, "DbtModel"] = field(default_factory=dict)
     children: Dict[str, "DbtModel"] = field(default_factory=dict)
     complexity: Optional[SqlComplexityResult] = None
     raw_score: float = 0.0
     score: float = 0.0
+    test_count: int = 0
+    quality_score: float = 0.0
 
     @property
     def downstream_model_count(self) -> int:
         return len(self.children)
+
+    @property
+    def column_count(self) -> int:
+        return len(self.columns)
+
+    @property
+    def tested_column_count(self) -> int:
+        return len([col for col in self.columns.values() if col.test_count > 0])
+    
+    @property
+    def column_test_coverage(self) -> float:
+        if self.column_count == 0:
+            return 0.0
+        return (self.tested_column_count / self.column_count) * 100
 
 
 @dataclass
