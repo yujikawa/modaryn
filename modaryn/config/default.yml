@@ -10,4 +10,4 @@ importance:
 
 quality:
   test_count: 0.5
-  column_coverage: 1.0
+  column_coverage: 0.01
