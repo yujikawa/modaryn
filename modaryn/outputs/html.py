@@ -1,14 +1,18 @@
 from jinja2 import Environment, FileSystemLoader
 from typing import Optional, List
+import json # jsonモジュールをインポート
+import html # htmlモジュールをインポート
 
 from modaryn.domain.model import DbtProject, DbtModel, ScoreStatistics
 from . import OutputGenerator
+from .graph import generate_visjs_graph_data # 新しく作成したモジュールをインポート
 
 HTML_SCORE_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
     <title>Modaryn Score and Scan Report</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
         body { font-family: sans-serif; margin: 2em; background-color: #f9f9f9; color: #333; }
         h1, h2 { color: #1a1a1a; border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
@@ -56,6 +60,12 @@ HTML_SCORE_TEMPLATE = """
             padding: 1em;
             margin-bottom: 1em;
         }
+        #network-graph {
+            width: 100%;
+            height: 600px; /* グラフの高さ */
+            border: 1px solid lightgray;
+            margin-bottom: 2em;
+        }
     </style>
 </head>
 <body>
@@ -81,6 +91,9 @@ HTML_SCORE_TEMPLATE = """
         </ul>
     </div>
     {% endif %}
+
+    <h2>Model Lineage Graph</h2>
+    <div id="network-graph"></div>
     
     <h2>Model Scores</h2>
     <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Search for models..">
@@ -184,6 +197,86 @@ HTML_SCORE_TEMPLATE = """
         tbody.innerHTML = "";
         rows.forEach(row => tbody.appendChild(row));
     }
+    
+    // HTMLエスケープされた文字列をアンエスケープする関数
+    function unescapeHtml(html) {
+        var txt = document.createElement("textarea");
+        txt.innerHTML = html;
+        return txt.value;
+    }
+
+    // vis.js graph drawing
+    document.addEventListener("DOMContentLoaded", function() {
+        const container = document.getElementById("network-graph");
+        
+        // Pythonから渡されたJSON文字列をJavaScriptのテンプレートリテラルで直接埋め込み、JSON.parseでオブジェクトに戻す
+        const nodesData = new vis.DataSet(JSON.parse(`{{ visjs_nodes | safe }}`));
+        const edgesData = new vis.DataSet(JSON.parse(`{{ visjs_edges | safe }}`));
+
+        const data = {
+            nodes: nodesData,
+            edges: edgesData
+        };
+        const options = {
+            nodes: {
+                shape: "box", // ノードの形状を四角に設定
+                size: 20,     // ノードのサイズを大きくする
+                font: {
+                    size: 14, // フォントサイズを大きくする
+                    color: '#333'
+                },
+                borderWidth: 2 // ノードの境界線を追加
+            },
+            edges: {
+                arrows: {
+                    to: {
+                        enabled: true,
+                        scaleFactor: 0.5
+                    }
+                },
+                color: {
+                    color: "#999",
+                    highlight: "#333",
+                    hover: "#333"
+                },
+                width: 2, // エッジの幅を大きくする
+                smooth: {
+                    type: "cubicBezier",
+                    forceDirection: "vertical",
+                    roundness: 0.4
+                }
+            },
+            layout: {
+                hierarchical: {
+                    enabled: false // 階層レイアウトを一時的に無効にする
+                }
+            },
+            physics: {
+                enabled: true, // 物理シミュレーションを有効にする
+                stabilization: {
+                    iterations: 1000 // 安定化のための繰り返し回数を増やす
+                }
+            },
+            interaction: {
+                navigationButtons: true,
+                keyboard: true,
+                zoomView: true,
+                dragView: true
+            }
+        };
+
+        const network = new vis.Network(container, data, options);
+        window.network = network; // グローバルスコープでアクセスできるようにする
+
+        // ノードクリックイベントの追加（オプション）
+        network.on("click", function (params) {
+            if (params.nodes.length > 0) {
+                const nodeId = params.nodes[0];
+                const clickedNode = nodesData.get(nodeId);
+                console.log("Clicked node details:", clickedNode);
+            }
+        });
+    });
     </script>
 
 </body>
@@ -193,7 +286,8 @@ HTML_SCORE_TEMPLATE = """
 
 class HtmlOutput(OutputGenerator):
     def __init__(self):
-        self.env = Environment(loader=FileSystemLoader('.')) # Not used, but required
+        self.env = Environment(loader=FileSystemLoader('.'), autoescape=False) # autoescape=Falseに戻す
+        self.env.filters['tojson'] = lambda obj: json.dumps(obj, separators=(',', ':')) # Jinja2環境にtojsonフィルターを追加。コンパクトなJSONを生成するように設定。
 
     def generate_report(self, project: DbtProject, problematic_models: Optional[List[DbtModel]] = None, threshold: Optional[float] = None, apply_zscore: bool = False, statistics: Optional[ScoreStatistics] = None) -> Optional[str]:
         sort_key = (lambda m: m.score) if apply_zscore else (lambda m: m.raw_score)
@@ -203,5 +297,20 @@ class HtmlOutput(OutputGenerator):
             key=lambda m: sort_key(m) if sort_key(m) is not None else -1,
             reverse=True
         )
+
+        # vis.jsのグラフデータを生成
+        visjs_nodes_data = generate_visjs_graph_data(project, apply_zscore=apply_zscore)
+        visjs_nodes_json = json.dumps(visjs_nodes_data[0], separators=(',', ':'))
+        visjs_edges_json = json.dumps(visjs_nodes_data[1], separators=(',', ':'))
+
         template = self.env.from_string(HTML_SCORE_TEMPLATE)
-        return template.render(models=sorted_models, apply_zscore=apply_zscore, statistics=statistics, problematic_models=problematic_models, threshold=threshold)
+        return template.render(
+            models=sorted_models, 
+            apply_zscore=apply_zscore, 
+            statistics=statistics, 
+            problematic_models=problematic_models, 
+            threshold=threshold,
+            visjs_nodes=visjs_nodes_json, # html.escape()せずJSON文字列をそのまま渡す
+            visjs_edges=visjs_edges_json  # html.escape()せずJSON文字列をそのまま渡す
+        )
+
