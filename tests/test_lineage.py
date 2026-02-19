@@ -153,3 +153,66 @@ def test_lineage_analyzer_ctes():
     assert len(model_b.columns["id"].upstream_columns) == 1
     assert model_b.columns["id"].upstream_columns[0].model_unique_id == "model.a"
     assert model_b.columns["id"].upstream_columns[0].column_name == "id"
+
+def test_lineage_analyzer_dialect_bigquery():
+    model_a = DbtModel(
+        unique_id="model.a",
+        model_name="table_a",
+        file_path=Path("models/a.sql"),
+        raw_sql="SELECT 1 as id",
+        columns={"id": DbtColumn(name="id", description="")}
+    )
+    model_b = DbtModel(
+        unique_id="model.b",
+        model_name="table_b",
+        file_path=Path("models/b.sql"),
+        raw_sql="SELECT `id` FROM `table_a`", # BigQuery backticks
+        columns={"id": DbtColumn(name="id", description="")},
+        dependencies=["model.a"]
+    )
+    project = DbtProject(models={"model.a": model_a, "model.b": model_b})
+    analyzer = LineageAnalyzer(dialect="bigquery")
+    analyzer.analyze(project)
+    assert len(model_b.columns["id"].upstream_columns) == 1
+
+def test_lineage_analyzer_dialect_snowflake():
+    model_a = DbtModel(
+        unique_id="model.a",
+        model_name="table_a",
+        file_path=Path("models/a.sql"),
+        raw_sql="SELECT 1 as id",
+        columns={"id": DbtColumn(name="id", description="")}
+    )
+    model_b = DbtModel(
+        unique_id="model.b",
+        model_name="table_b",
+        file_path=Path("models/b.sql"),
+        raw_sql='SELECT id FROM table_a', # Snowflake standard (unquoted)
+        columns={"id": DbtColumn(name="id", description="")},
+        dependencies=["model.a"]
+    )
+    project = DbtProject(models={"model.a": model_a, "model.b": model_b})
+    analyzer = LineageAnalyzer(dialect="snowflake")
+    analyzer.analyze(project)
+    assert len(model_b.columns["id"].upstream_columns) == 1
+
+def test_lineage_analyzer_dialect_postgres():
+    model_a = DbtModel(
+        unique_id="model.a",
+        model_name="table_a",
+        file_path=Path("models/a.sql"),
+        raw_sql="SELECT 1 as id",
+        columns={"id": DbtColumn(name="id", description="")}
+    )
+    model_b = DbtModel(
+        unique_id="model.b",
+        model_name="table_b",
+        file_path=Path("models/b.sql"),
+        raw_sql="SELECT id::TEXT FROM table_a", # Postgres cast syntax
+        columns={"id": DbtColumn(name="id", description="")},
+        dependencies=["model.a"]
+    )
+    project = DbtProject(models={"model.a": model_a, "model.b": model_b})
+    analyzer = LineageAnalyzer(dialect="postgres")
+    analyzer.analyze(project)
+    assert len(model_b.columns["id"].upstream_columns) == 1
