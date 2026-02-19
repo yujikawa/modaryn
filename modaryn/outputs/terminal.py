@@ -11,28 +11,29 @@ class TerminalOutput(OutputGenerator):
         self.console = Console()
 
     def generate_report(self, project: DbtProject, problematic_models: Optional[List[DbtModel]] = None, threshold: Optional[float] = None, apply_zscore: bool = False, statistics: Optional[ScoreStatistics] = None) -> Optional[str]:
-        table = Table(title="dbt Models Score and Scan Results")
+        table = Table(title="dbt Models Score and Scan Results", expand=True)
         table.add_column("Rank", justify="right", style="cyan", no_wrap=True)
-        table.add_column("Model Name", justify="left", style="white")
+        table.add_column("Model Name", justify="left", style="white", ratio=1, no_wrap=False)
 
         if apply_zscore:
-            table.add_column("Score (Z-Score)", justify="right", style="green")
+            table.add_column("Score(Z)", justify="right", style="green", no_wrap=True)
             sort_key = lambda m: m.score if m.score is not None else -1
             score_attr = "score"
         else:
-            table.add_column("Score (Raw)", justify="right", style="green")
+            table.add_column("Score(Raw)", justify="right", style="green", no_wrap=True)
             sort_key = lambda m: m.raw_score if m.raw_score is not None else -1
             score_attr = "raw_score"
         
-        table.add_column("Quality Score", justify="right", style="magenta")
-        table.add_column("JOINs", justify="right", style="blue")
-        table.add_column("CTEs", justify="right", style="blue")
-        table.add_column("Conditionals", justify="right", style="blue")
-        table.add_column("WHEREs", justify="right", style="blue")
-        table.add_column("SQL Chars", justify="right", style="blue")
-        table.add_column("Downstream", justify="right", style="yellow")
-        table.add_column("Tests", justify="right", style="yellow")
-        table.add_column("Coverage (%)", justify="right", style="yellow")
+        table.add_column("Qual.", justify="right", style="magenta", no_wrap=True)
+        table.add_column("JOINs", justify="right", style="blue", no_wrap=True)
+        table.add_column("CTEs", justify="right", style="blue", no_wrap=True)
+        table.add_column("Cond.", justify="right", style="blue", no_wrap=True)
+        table.add_column("WHERs", justify="right", style="blue", no_wrap=True)
+        table.add_column("Chars", justify="right", style="blue", no_wrap=True)
+        table.add_column("Down.", justify="right", style="yellow", no_wrap=True)
+        table.add_column("C-Down", justify="right", style="yellow", no_wrap=True)
+        table.add_column("Tests", justify="right", style="yellow", no_wrap=True)
+        table.add_column("Cov.%", justify="right", style="yellow", no_wrap=True)
 
         sorted_models = sorted(
             project.models.values(),
@@ -71,6 +72,7 @@ class TerminalOutput(OutputGenerator):
                 where_count,
                 sql_char_count,
                 str(model.downstream_model_count),
+                str(model.downstream_column_count),
                 str(model.test_count),
                 f"{model.column_test_coverage:.1f}%",
             )

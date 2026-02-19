@@ -5,6 +5,7 @@ from typing import Optional
 from enum import Enum
 
 from modaryn.loaders.manifest import ManifestLoader
+from modaryn.analyzers.lineage import LineageAnalyzer
 from modaryn.scorers.score import Scorer
 from modaryn.outputs.terminal import TerminalOutput
 from modaryn.outputs.markdown import MarkdownOutput
@@ -94,6 +95,10 @@ def score(
     except Exception as e:
         console.print(f"[bold red]Error loading manifest file: {e}[/bold red]")
         raise typer.Exit(code=1)
+
+    console.print(f"📊 Analyzing column-level lineage...")
+    lineage_analyzer = LineageAnalyzer(dialect=dialect)
+    lineage_analyzer.analyze(project)
 
     console.print(f"⚖️  Scoring project...")
     scorer = Scorer(config)
@@ -191,6 +196,10 @@ def ci_check(
     except Exception as e:
         console.print(f"[bold red]Error loading manifest file: {e}[/bold red]")
         raise typer.Exit(code=1)
+
+    console.print(f"📊 Analyzing column-level lineage...")
+    lineage_analyzer = LineageAnalyzer(dialect=dialect)
+    lineage_analyzer.analyze(project)
 
     console.print(f"⚖️  Scoring project and checking thresholds...")
     scorer = Scorer(config)

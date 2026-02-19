@@ -75,24 +75,55 @@ The score commands will now output statistics (mean, median, standard deviation)
 
 ![modaryn](./docs/assets/result.png)
 
-### Report Columns Explained
+### Report Columns and Calculation Logic
+`modaryn` calculates a comprehensive risk score based on three pillars: **Complexity**, **Importance**, and **Quality**.
 
-The `score` command generates a detailed report with the following columns:
+#### 1. SQL Complexity Metrics
+These metrics are extracted by parsing the compiled SQL of each model using `sqlglot`.
 
-| Column Header       | Description                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `Rank`              | The position of the model when ranked by its overall score (highest score first).                                                                                                                                                                                                                                                                                                                                                           |
-| `Model Name`        | The name of the dbt model.                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `Score (Raw/Z-Score)` | The overall risk/complexity score of the model. This is a composite score based on complexity, importance, and quality. It can be displayed as a raw score or a Z-score (standardized score).                                                                                                                                                                                                                                                |
-| `Quality Score`     | A score reflecting the quality of the model based on its dbt test coverage. Higher quality scores indicate better test coverage, which reduces the overall risk score.                                                                                                                                                                                                                                                                      |
-| `JOINs`             | The count of `JOIN` operations in the compiled SQL of the model.                                                                                                                                                                                                                                                                                                                                                                            |
-| `CTEs`              | The count of Common Table Expressions (CTEs) defined in the compiled SQL of the model.                                                                                                                                                                                                                                                                                                                                                      |
-| `Conditionals`      | The count of conditional statements (e.g., `CASE WHEN`, `IF`) in the compiled SQL of the model.                                                                                                                                                                                                                                                                                                                                             |
-| `WHEREs`            | The count of `WHERE` clauses in the compiled SQL of the model.                                                                                                                                                                                                                                                                                                                                                                              |
-| `SQL Chars`         | The character count of the compiled SQL for the model, serving as a basic proxy for query size.                                                                                                                                                                                                                                                                                                                                             |
-| `Downstream Models` | The number of other dbt models that directly depend on this model. This indicates the model's structural importance.                                                                                                                                                                                                                                                                                                                          |
-| `Tests`             | The total number of dbt tests directly associated with this model.                                                                                                                                                                                                                                                                                                                                                                          |
-| `Coverage (%)`      | The percentage of this model's columns that are covered by at least one dbt test. This indicates the extent of test coverage at a column level.                                                                                                                                                                                                                                                                                               |
+| Metric | Calculation Method | Example |
+| :--- | :--- | :--- |
+| **JOINs** | Count of all `JOIN` clauses in the SQL. | `JOIN`, `LEFT JOIN`, `CROSS JOIN` each count as 1. |
+| **CTEs** | Count of all Common Table Expressions defined. | `WITH cte_a AS (...), cte_b AS (...)` counts as 2. |
+| **Conditionals** | Count of `CASE WHEN` branches and `IF` functions. | A `CASE` with 3 `WHEN` clauses counts as 1 (case-level). |
+| **WHEREs** | Count of `WHERE` clauses (including subqueries). | A main `WHERE` and one in a subquery counts as 2. |
+| **SQL Chars** | Total character count of the SQL (excluding spaces). | `SELECT 1` (8 chars). |
+
+#### 2. Structural Importance Metrics
+These metrics represent how much other parts of the dbt project depend on a model.
+
+| Metric | Calculation Method | Example |
+| :--- | :--- | :--- |
+| **Downstream** | Number of unique dbt models that directly reference this model. | If Model B and Model C use Model A, Model A has **2** Downstream Models. |
+| **Col. Down** | **Total count** of downstream column references across all models. | If Model B's `col1` and `col2` both use Model A's `id`, it adds **2** to Model A's `Col. Down` count. |
+
+**Example of `Col. Down`:**
+If Model A has a column `user_id`, and:
+- Model B uses `user_id` to calculate `b_user_id`. (+1)
+- Model C uses `user_id` to calculate `c_user_id` AND `creator_id`. (+2)
+- **Total `Col. Down` for Model A** = 1 + 2 = **3**.
+
+#### 3. Quality Metrics
+These metrics act as "negative risk" (they reduce the overall score).
+
+| Metric | Calculation Method | Example |
+| :--- | :--- | :--- |
+| **Tests** | Count of all dbt tests (`unique`, `not_null`, custom, etc.) attached to the model. | A model with 4 column tests has a count of **4**. |
+| **Coverage (%)** | Percentage of columns in the model that have at least one test. | If 8 out of 10 columns have tests, coverage is **80%**. |
+
+### Scoring Formula
+The final score is a weighted combination of these metrics:
+
+1.  **Complexity Score** = `(JOINs * w1) + (CTEs * w2) + (Conditionals * w3) + (WHEREs * w4) + (Chars * w5)`
+2.  **Importance Score** = `(Downstream Models * w6) + (Col. Down * w7)`
+3.  **Quality Score** = `(Tests * w8) + (Coverage % * w9)`
+
+**Raw Score** = `Complexity Score + Importance Score - Quality Score` (Minimum 0)
+
+#### Z-Score Normalization
+When `--apply-zscore` is used, the raw scores are standardized:
+`Z-Score = (Raw Score - Mean) / Standard Deviation`
+This allows you to see how many standard deviations a model is away from the project average.
 
 #### `ci-check` command
 Checks dbt model complexity against a defined score threshold for CI pipelines. By default, it uses raw scores. Use `--apply-zscore` to check against Z-scores. Exits with code 1 if any model's score exceeds the threshold, 0 otherwise. This command is designed for automated quality gates in your CI/CD workflows.
