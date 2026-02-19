@@ -14,10 +14,18 @@ class ScoreStatistics:
 
 
 @dataclass
+class ColumnReference:
+    model_unique_id: str
+    column_name: str
+
+
+@dataclass
 class DbtColumn:
     name: str
     description: str
     test_count: int = 0
+    upstream_columns: List[ColumnReference] = field(default_factory=list)
+    downstream_columns: List[ColumnReference] = field(default_factory=list)
 
 
 @dataclass
@@ -39,6 +47,10 @@ class DbtModel:
     @property
     def downstream_model_count(self) -> int:
         return len(self.children)
+
+    @property
+    def downstream_column_count(self) -> int:
+        return sum(len(col.downstream_columns) for col in self.columns.values())
 
     @property
     def column_count(self) -> int:

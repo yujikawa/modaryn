@@ -77,6 +77,10 @@ class Scorer:
             model.downstream_model_count
             * importance_weights.get("downstream_model_count", 0)
         )
+        importance_score += (
+            model.downstream_column_count
+            * importance_weights.get("downstream_column_count", 0)
+        )
         
         quality_score = 0
         quality_score += model.test_count * quality_weights.get("test_count", 0)

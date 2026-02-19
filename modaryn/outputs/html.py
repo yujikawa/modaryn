@@ -111,8 +111,9 @@ HTML_SCORE_TEMPLATE = """
                 <th class="sortable" onclick="sortTable(7, 'number')" data-type="number">WHEREs</th>
                 <th class="sortable" onclick="sortTable(8, 'number')" data-type="number">SQL Chars</th>
                 <th class="sortable" onclick="sortTable(9, 'number')" data-type="number">Downstream Models</th>
-                <th class="sortable" onclick="sortTable(10, 'number')" data-type="number">Tests</th>
-                <th class="sortable" onclick="sortTable(11, 'number')" data-type="number">Coverage (%)</th>
+                <th class="sortable" onclick="sortTable(10, 'number')" data-type="number">Col. Down</th>
+                <th class="sortable" onclick="sortTable(11, 'number')" data-type="number">Tests</th>
+                <th class="sortable" onclick="sortTable(12, 'number')" data-type="number">Coverage (%)</th>
             </tr>
         </thead>
         <tbody id="models-tbody">
@@ -134,6 +135,7 @@ HTML_SCORE_TEMPLATE = """
             <td>{{ model.complexity.where_count if model.complexity else '0' }}</td>
             <td>{{ model.complexity.sql_char_count if model.complexity else '0' }}</td>
             <td>{{ model.downstream_model_count }}</td>
+            <td>{{ model.downstream_column_count }}</td>
             <td>{{ model.test_count }}</td>
             <td>{{ "%.1f"|format(model.column_test_coverage) }}</td>
         </tr>
