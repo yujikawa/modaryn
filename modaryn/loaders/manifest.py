@@ -1,11 +1,39 @@
+import fnmatch
 import json
 import warnings
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 import yaml
 
 from modaryn.analyzers.sql_complexity import SqlComplexityAnalyzer
 from modaryn.domain.model import DbtModel, DbtProject, DbtColumn
+
+
+def apply_select(project: DbtProject, selectors: List[str]) -> DbtProject:
+    """Filters a DbtProject to models matching any of the given selectors.
+
+    Selector syntax:
+      - ``fct_*``         — model name glob (fnmatch)
+      - ``path:marts/``   — path prefix match
+      - ``tag:finance``   — dbt tag match
+    Multiple selectors are combined with OR logic.
+    """
+    def matches(model: DbtModel) -> bool:
+        for selector in selectors:
+            if selector.startswith("path:"):
+                prefix = selector[5:].rstrip("/")
+                if str(model.file_path).startswith(prefix):
+                    return True
+            elif selector.startswith("tag:"):
+                if selector[4:] in model.tags:
+                    return True
+            else:
+                if fnmatch.fnmatch(model.model_name, selector):
+                    return True
+        return False
+
+    filtered = {uid: m for uid, m in project.models.items() if matches(m)}
+    return DbtProject(models=filtered)
 
 
 class ManifestLoader:
@@ -100,6 +128,7 @@ class ManifestLoader:
                     columns=model_columns,
                     dependencies=self._get_node_dependencies(node_data),
                     complexity=complexity,
+                    tags=node_data.get("tags", []),
                 )
                 models[unique_id] = model
 

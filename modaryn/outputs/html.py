@@ -175,7 +175,15 @@ HTML_SCORE_TEMPLATE = """
         {% endfor %}
         </tbody>
     </table>
-    
+
+    {% if missing_sql_models %}
+    <div style="margin-top:1em; padding:0.8em 1em; background:#fff8e1; border-left:4px solid #ffc107; border-radius:4px; font-size:0.9em;">
+        ⚠ <strong>{{ missing_sql_models|length }} model(s) show N/A for complexity columns</strong> because compiled SQL was not found.
+        Run <code>dbt compile</code> to enable full analysis:
+        {{ missing_sql_models | join(', ') }}
+    </div>
+    {% endif %}
+
     <script>
     function filterTable() {
         const input = document.getElementById("searchInput");
@@ -383,6 +391,8 @@ class HtmlOutput(OutputGenerator):
                 cols.append({"name": col.name, "upstream": upstream, "downstream": downstream})
             column_lineage[unique_id] = cols
 
+        missing_sql_models = [m.model_name for m in sorted_models if not m.complexity]
+
         template = self.env.from_string(HTML_SCORE_TEMPLATE)
         return template.render(
             models=sorted_models,
@@ -393,5 +403,6 @@ class HtmlOutput(OutputGenerator):
             visjs_nodes=visjs_nodes_json,
             visjs_edges=visjs_edges_json,
             column_lineage_json=json.dumps(column_lineage, separators=(',', ':')),
+            missing_sql_models=missing_sql_models,
         )
 

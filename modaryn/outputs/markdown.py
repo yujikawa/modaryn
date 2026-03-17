@@ -29,6 +29,13 @@ class MarkdownOutput(OutputGenerator):
                 f"| {i + 1} | {model.model_name} | {score_to_display:.2f} | {model.quality_score:.2f} | {join_count} | {cte_count} | {conditional_count} | {where_count} | {sql_char_count} | {model.downstream_model_count} | {model.downstream_column_count} | {model.test_count} | {model.column_test_coverage:.1f}% |"
             )
         
+        missing_sql_models = [m.model_name for m in sorted_models if not m.complexity]
+        if missing_sql_models:
+            lines.append(
+                f"\n> ⚠ **{len(missing_sql_models)} model(s) show N/A for complexity columns** because compiled SQL was not found. "
+                f"Run `dbt compile` to enable full analysis: {', '.join(missing_sql_models)}"
+            )
+
         if statistics:
             lines.append("\n### Score Statistics")
             lines.append(f"- Mean: {statistics.mean:.3f}")

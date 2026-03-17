@@ -3,10 +3,10 @@ import typer
 from pathlib import Path
 from rich.console import Console # Keep Console for general messages
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, MofNCompleteColumn
-from typing import Optional
+from typing import List, Optional
 from enum import Enum
 
-from modaryn.loaders.manifest import ManifestLoader
+from modaryn.loaders.manifest import ManifestLoader, apply_select
 from modaryn.analyzers.lineage import LineageAnalyzer
 from modaryn.scorers.score import Scorer
 from modaryn.outputs.terminal import TerminalOutput
@@ -86,6 +86,12 @@ def score(
         help="Path to write the output file.",
         writable=True,
     ),
+    select: Optional[List[str]] = typer.Option(
+        None,
+        "--select",
+        "-s",
+        help="Filter models by selector. Supports: model name glob (fct_*), path:marts/finance, tag:daily. Multiple flags = OR logic.",
+    ),
     verbose: bool = typer.Option(
         False,
         "--verbose",
@@ -103,6 +109,13 @@ def score(
     except Exception as e:
         console.print(f"[bold red]Error loading manifest file: {e}[/bold red]")
         raise typer.Exit(code=1)
+
+    if select:
+        project = apply_select(project, select)
+        console.print(f"🔎 Selector applied: [bold cyan]{', '.join(select)}[/bold cyan] → {len(project.models)} model(s) selected")
+        if not project.models:
+            console.print("[bold red]No models matched the given selector(s).[/bold red]")
+            raise typer.Exit(code=1)
 
     resolved_dialect = loader.dialect
     if not dialect:
@@ -207,6 +220,12 @@ def ci_check(
         help="Path to write the output file.",
         writable=True,
     ),
+    select: Optional[List[str]] = typer.Option(
+        None,
+        "--select",
+        "-s",
+        help="Filter models by selector. Supports: model name glob (fct_*), path:marts/finance, tag:daily. Multiple flags = OR logic.",
+    ),
     verbose: bool = typer.Option(
         False,
         "--verbose",
@@ -226,6 +245,13 @@ def ci_check(
     except Exception as e:
         console.print(f"[bold red]Error loading manifest file: {e}[/bold red]")
         raise typer.Exit(code=1)
+
+    if select:
+        project = apply_select(project, select)
+        console.print(f"🔎 Selector applied: [bold cyan]{', '.join(select)}[/bold cyan] → {len(project.models)} model(s) selected")
+        if not project.models:
+            console.print("[bold red]No models matched the given selector(s).[/bold red]")
+            raise typer.Exit(code=1)
 
     resolved_dialect = loader.dialect
     if not dialect:
@@ -327,6 +353,12 @@ def impact(
         help="The SQL dialect to use for parsing (e.g. bigquery, snowflake, duckdb). Auto-detected from manifest.json if not specified.",
         case_sensitive=False,
     ),
+    select: Optional[List[str]] = typer.Option(
+        None,
+        "--select",
+        "-s",
+        help="Filter models by selector. Supports: model name glob (fct_*), path:marts/finance, tag:daily. Multiple flags = OR logic.",
+    ),
     verbose: bool = typer.Option(
         False,
         "--verbose",
@@ -346,6 +378,13 @@ def impact(
     except Exception as e:
         console.print(f"[bold red]Error loading manifest file: {e}[/bold red]")
         raise typer.Exit(code=1)
+
+    if select:
+        project = apply_select(project, select)
+        console.print(f"🔎 Selector applied: [bold cyan]{', '.join(select)}[/bold cyan] → {len(project.models)} model(s) selected")
+        if not project.models:
+            console.print("[bold red]No models matched the given selector(s).[/bold red]")
+            raise typer.Exit(code=1)
 
     resolved_dialect = loader.dialect
     if not dialect:

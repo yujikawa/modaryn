@@ -72,6 +72,13 @@ class TerminalOutput(OutputGenerator):
         
         self.console.print(table)
 
+        missing_sql_models = [m.model_name for m in sorted_models if not m.complexity]
+        if missing_sql_models:
+            self.console.print(
+                f"\n[yellow]⚠ {len(missing_sql_models)} model(s) show N/A for complexity columns because compiled SQL was not found "
+                f"(run 'dbt compile' to enable full analysis): {', '.join(missing_sql_models)}[/yellow]"
+            )
+
         if statistics:
             self.console.print("\n--- Score Statistics ---")
             self.console.print(f"Mean: {statistics.mean:.3f}")

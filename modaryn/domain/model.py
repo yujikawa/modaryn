@@ -43,6 +43,7 @@ class DbtModel:
     score: float = 0.0
     test_count: int = 0
     quality_score: float = 0.0
+    tags: List[str] = field(default_factory=list)
 
     @property
     def downstream_model_count(self) -> int:
