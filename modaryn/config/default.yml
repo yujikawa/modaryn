@@ -8,7 +8,9 @@ sql_complexity:
 importance:
   downstream_model_count: 1.0
   downstream_column_count: 0.1
+  downstream_column_model_spread: 0.5
 
 quality:
   test_count: 0.5
   column_coverage: 0.01
+  untested_downstream_column_penalty: 0.2

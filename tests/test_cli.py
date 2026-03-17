@@ -128,7 +128,7 @@ def test_score_command_to_markdown_file(dbt_project_with_compiled_sql, tmp_path)
     assert output_file.exists()
     content = output_file.read_text()
     assert "# Modaryn Score and Scan Report" in content
-    assert "| Rank | Model Name | Score (Raw) | Quality Score | JOINs | CTEs | Conditionals | WHEREs | SQL Chars | Downstream Children | Tests | Coverage (%) |" in content
+    assert "| Rank | Model Name | Score (Raw) | Quality Score | JOINs | CTEs | Conditionals | WHEREs | SQL Chars | Downstream Children | Col. Down | Tests | Coverage (%) |" in content
     assert "int_customer_order_summary" in content
     assert "fct_customer_product_affinity" in content
     assert "int_order_product_details" in content
@@ -142,11 +142,11 @@ def test_score_command_to_markdown_file_with_zscore(dbt_project_with_compiled_sq
     result = runner.invoke(app, ["score", "--project-path", str(dbt_project_with_compiled_sql), "-f", "markdown", "-o", str(output_file), "--apply-zscore"])
     assert result.exit_code == 0
     assert "Report saved to" in result.stdout
-    assert output_file.name in result.stdout.replace("\x1b[1;36m", "").replace("\x1b[0m", "")
+    assert output_file.name in result.stdout.replace("\x1b[1;36m", "").replace("\x1b[0m", "").replace("\n", "")
     assert output_file.exists()
     content = output_file.read_text()
     assert "# Modaryn Score and Scan Report" in content
-    assert "| Rank | Model Name | Score (Z-Score) | Quality Score | JOINs | CTEs | Conditionals | WHEREs | SQL Chars | Downstream Children | Tests | Coverage (%) |" in content
+    assert "| Rank | Model Name | Score (Z-Score) | Quality Score | JOINs | CTEs | Conditionals | WHEREs | SQL Chars | Downstream Children | Col. Down | Tests | Coverage (%) |" in content
     assert "int_customer_order_summary" in content
 
 
@@ -173,11 +173,11 @@ def test_ci_check_command_fails_on_zscore_threshold_exceeded(dbt_project_with_co
     result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold), "--apply-zscore"])
     
     assert result.exit_code == 1
-    assert "Threshold exceeded by 6 models" in result.stdout
+    assert "Threshold exceeded by 5 models" in result.stdout
     assert "fct_customer_segmentation" in result.stdout # Ensure high-score models are listed
     assert "--- CI Check Summary ---" in result.stdout
     assert "Status: FAILED" in result.stdout
-    assert "6 models exceeded threshold." in result.stdout
+    assert "5 models exceeded threshold." in result.stdout
     assert "Total models checked: 30" in result.stdout
     assert f"Threshold: {test_threshold:.3f}" in result.stdout
 
@@ -344,7 +344,7 @@ def test_terminal_output_with_zscore(sample_project_for_output_test: DbtProject)
 
         output = mock_file.getvalue()
         # Check for z-score indicator in header
-        assert "Score (Z-Score)" in output
+        assert "Score(Z)" in output
         # Check that the z-scores are displayed (sorted by z-score desc)
         # model2 has higher z-score (2.5)
         assert "model2" in output.splitlines()[4]
@@ -373,7 +373,7 @@ def test_terminal_output_without_zscore(sample_project_for_output_test: DbtProje
 
         output = mock_file.getvalue()
         # Check for raw score indicator in header
-        assert "Score (Raw)" in output
+        assert "Score(Raw)" in output
         # Check that the raw scores are displayed (sorted by raw_score desc)
         # model2 has higher raw_score (25.5)
         assert "model2" in output.splitlines()[4]

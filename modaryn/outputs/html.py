@@ -60,12 +60,38 @@ HTML_SCORE_TEMPLATE = """
             padding: 1em;
             margin-bottom: 1em;
         }
-        #network-graph {
-            width: 100%;
-            height: 600px; /* グラフの高さ */
-            border: 1px solid lightgray;
+        #graph-area {
+            display: flex;
+            gap: 1em;
             margin-bottom: 2em;
         }
+        #network-graph {
+            flex: 1;
+            height: 600px;
+            border: 1px solid lightgray;
+        }
+        #column-lineage-panel {
+            width: 320px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+            padding: 1em;
+            display: none;
+            overflow-y: auto;
+            max-height: 600px;
+            font-size: 0.9em;
+        }
+        #column-lineage-panel h3 {
+            margin-top: 0;
+            font-size: 1em;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 0.4em;
+        }
+        .col-entry { margin: 0.5em 0; }
+        .col-name { font-weight: bold; color: #333; }
+        .col-ref { color: #666; font-size: 0.85em; padding-left: 1em; }
+        .col-ref-up { color: #2196F3; }
+        .col-ref-down { color: #E91E63; }
     </style>
 </head>
 <body>
@@ -93,7 +119,14 @@ HTML_SCORE_TEMPLATE = """
     {% endif %}
 
     <h2>Model Lineage Graph</h2>
-    <div id="network-graph"></div>
+    <p style="color:#666; font-size:0.9em;">Click a node to see column-level lineage.</p>
+    <div id="graph-area">
+        <div id="network-graph"></div>
+        <div id="column-lineage-panel">
+            <h3 id="panel-title">Column Lineage</h3>
+            <div id="panel-content"></div>
+        </div>
+    </div>
     
     <h2>Model Scores</h2>
     <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Search for models..">
@@ -270,12 +303,39 @@ HTML_SCORE_TEMPLATE = """
         const network = new vis.Network(container, data, options);
         window.network = network; // グローバルスコープでアクセスできるようにする
 
-        // ノードクリックイベントの追加（オプション）
+        const columnLineageData = JSON.parse(`{{ column_lineage_json | safe }}`);
+
         network.on("click", function (params) {
             if (params.nodes.length > 0) {
                 const nodeId = params.nodes[0];
                 const clickedNode = nodesData.get(nodeId);
-                console.log("Clicked node details:", clickedNode);
+                const panel = document.getElementById("column-lineage-panel");
+                const title = document.getElementById("panel-title");
+                const content = document.getElementById("panel-content");
+
+                title.textContent = clickedNode.label;
+                const cols = columnLineageData[nodeId] || [];
+
+                if (cols.length === 0) {
+                    content.innerHTML = '<p style="color:#999;">No column lineage data available.</p>';
+                } else {
+                    content.innerHTML = cols.map(col => {
+                        const upRefs = (col.upstream || []).map(r =>
+                            `<div class="col-ref col-ref-up">↑ ${r.model}.${r.column}</div>`
+                        ).join('');
+                        const downRefs = (col.downstream || []).map(r =>
+                            `<div class="col-ref col-ref-down">↓ ${r.model}.${r.column}</div>`
+                        ).join('');
+                        return `<div class="col-entry">
+                            <div class="col-name">${col.name}</div>
+                            ${upRefs}${downRefs}
+                            ${!upRefs && !downRefs ? '<div class="col-ref" style="color:#bbb;">no lineage</div>' : ''}
+                        </div>`;
+                    }).join('<hr style="border:none;border-top:1px solid #f0f0f0;margin:0.3em 0">');
+                }
+                panel.style.display = "block";
+            } else {
+                document.getElementById("column-lineage-panel").style.display = "none";
             }
         });
     });
@@ -305,14 +365,33 @@ class HtmlOutput(OutputGenerator):
         visjs_nodes_json = json.dumps(visjs_nodes_data[0], separators=(',', ':'))
         visjs_edges_json = json.dumps(visjs_nodes_data[1], separators=(',', ':'))
 
+        # カラムレベルリネージデータを生成 (unique_id -> [{name, upstream, downstream}])
+        column_lineage: dict = {}
+        for unique_id, model in project.models.items():
+            cols = []
+            for col in model.columns.values():
+                upstream = [
+                    {"model": project.models[r.model_unique_id].model_name, "column": r.column_name}
+                    for r in col.upstream_columns
+                    if r.model_unique_id in project.models
+                ]
+                downstream = [
+                    {"model": project.models[r.model_unique_id].model_name, "column": r.column_name}
+                    for r in col.downstream_columns
+                    if r.model_unique_id in project.models
+                ]
+                cols.append({"name": col.name, "upstream": upstream, "downstream": downstream})
+            column_lineage[unique_id] = cols
+
         template = self.env.from_string(HTML_SCORE_TEMPLATE)
         return template.render(
-            models=sorted_models, 
-            apply_zscore=apply_zscore, 
-            statistics=statistics, 
-            problematic_models=problematic_models, 
+            models=sorted_models,
+            apply_zscore=apply_zscore,
+            statistics=statistics,
+            problematic_models=problematic_models,
             threshold=threshold,
-            visjs_nodes=visjs_nodes_json, # html.escape()せずJSON文字列をそのまま渡す
-            visjs_edges=visjs_edges_json  # html.escape()せずJSON文字列をそのまま渡す
+            visjs_nodes=visjs_nodes_json,
+            visjs_edges=visjs_edges_json,
+            column_lineage_json=json.dumps(column_lineage, separators=(',', ':')),
         )
 

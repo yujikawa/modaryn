@@ -53,12 +53,30 @@ class DbtModel:
         return sum(len(col.downstream_columns) for col in self.columns.values())
 
     @property
+    def downstream_column_model_spread(self) -> int:
+        """Number of distinct downstream models that reference any column from this model."""
+        downstream_model_ids = set()
+        for col in self.columns.values():
+            for ref in col.downstream_columns:
+                downstream_model_ids.add(ref.model_unique_id)
+        return len(downstream_model_ids)
+
+    @property
     def column_count(self) -> int:
         return len(self.columns)
 
     @property
     def tested_column_count(self) -> int:
         return len([col for col in self.columns.values() if col.test_count > 0])
+
+    @property
+    def untested_downstream_column_count(self) -> int:
+        """Number of downstream column references originating from untested columns."""
+        return sum(
+            len(col.downstream_columns)
+            for col in self.columns.values()
+            if col.test_count == 0 and col.downstream_columns
+        )
     
     @property
     def column_test_coverage(self) -> float:
