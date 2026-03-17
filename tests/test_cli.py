@@ -58,7 +58,7 @@ def test_sql_complexity_analysis_with_compiled_sql(dbt_project_with_compiled_sql
     model_ics = project.get_model("model.sample_project.int_customer_order_summary")
     assert model_ics.complexity.join_count == 2
     assert model_ics.complexity.cte_count == 2
-    assert model_ics.complexity.conditional_count == 3
+    assert model_ics.complexity.conditional_count == 2
     assert model_ics.complexity.where_count == 0
     assert model_ics.complexity.sql_char_count == 815 # Updated from 1076
     assert model_ics.downstream_model_count == 1 # fct_customer_product_affinity
@@ -197,8 +197,8 @@ def test_ci_check_command_passes_on_zscore_threshold_not_exceeded(dbt_project_wi
 
 
 def test_ci_check_command_fails_on_threshold_exceeded(dbt_project_with_compiled_sql):
-    # Models exceeding 20.0 raw score: fct_customer_segmentation (20.77) (1 model)
-    test_threshold = 18.0
+    # Models exceeding 17.0 raw score: fct_customer_segmentation (17.27) (1 model)
+    test_threshold = 16.0
     result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold)])
     
     assert result.exit_code == 1

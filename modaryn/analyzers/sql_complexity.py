@@ -34,7 +34,7 @@ class SqlComplexityAnalyzer:
 
         join_count = len(list(expression.find_all(sqlglot.exp.Join)))
         cte_count = len(list(expression.find_all(sqlglot.exp.CTE)))
-        conditional_count = len(list(expression.find_all(sqlglot.exp.Case))) + len(list(expression.find_all(sqlglot.exp.If)))
+        conditional_count = len(list(expression.find_all(sqlglot.exp.If)))
         where_count = len(list(expression.find_all(sqlglot.exp.Where)))
         sql_char_count = len(sql.replace(' ', '').strip())
 
