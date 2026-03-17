@@ -103,12 +103,20 @@ def score(
     Analyzes and scores dbt models based on complexity and importance, displaying combined scan and score information.
     """
     console.print(f"🔍 Loading dbt project: [bold cyan]{project_path}[/bold cyan]")
-    try:
-        loader = ManifestLoader(project_path, dialect=dialect)
-        project = loader.load()
-    except Exception as e:
-        console.print(f"[bold red]Error loading manifest file: {e}[/bold red]")
-        raise typer.Exit(code=1)
+    with warnings.catch_warnings(record=True) as caught_warnings:
+        warnings.simplefilter("always")
+        try:
+            loader = ManifestLoader(project_path, dialect=dialect)
+            project = loader.load()
+        except Exception as e:
+            console.print(f"[bold red]Error loading manifest file: {e}[/bold red]")
+            raise typer.Exit(code=1)
+    load_warnings = [w for w in caught_warnings if issubclass(w.category, UserWarning)]
+    if load_warnings and verbose:
+        for w in load_warnings:
+            console.print(f"  [yellow]⚠ {w.message}[/yellow]")
+    if load_warnings:
+        console.print(f"🔍 Project loaded. [yellow]({len(load_warnings)} model(s) missing compiled SQL — use --verbose for details)[/yellow]")
 
     if select:
         project = apply_select(project, select)
@@ -139,7 +147,12 @@ def score(
 
     console.print(f"⚖️  Scoring project...")
     scorer = Scorer(config)
-    scorer.score_project(project, apply_zscore=apply_zscore)
+    with warnings.catch_warnings(record=True) as caught_warnings:
+        warnings.simplefilter("always")
+        scorer.score_project(project, apply_zscore=apply_zscore)
+    for w in caught_warnings:
+        if issubclass(w.category, UserWarning):
+            console.print(f"  [yellow]⚠ {w.message}[/yellow]")
 
     output_generator: OutputGenerator
     if format == OutputFormat.terminal:
@@ -239,12 +252,20 @@ def ci_check(
     Exits with code 1 if any model's score exceeds the threshold, 0 otherwise.
     """
     console.print(f"🔍 Loading dbt project: [bold cyan]{project_path}[/bold cyan]")
-    try:
-        loader = ManifestLoader(project_path, dialect=dialect)
-        project = loader.load()
-    except Exception as e:
-        console.print(f"[bold red]Error loading manifest file: {e}[/bold red]")
-        raise typer.Exit(code=1)
+    with warnings.catch_warnings(record=True) as caught_warnings:
+        warnings.simplefilter("always")
+        try:
+            loader = ManifestLoader(project_path, dialect=dialect)
+            project = loader.load()
+        except Exception as e:
+            console.print(f"[bold red]Error loading manifest file: {e}[/bold red]")
+            raise typer.Exit(code=1)
+    load_warnings = [w for w in caught_warnings if issubclass(w.category, UserWarning)]
+    if load_warnings and verbose:
+        for w in load_warnings:
+            console.print(f"  [yellow]⚠ {w.message}[/yellow]")
+    if load_warnings:
+        console.print(f"🔍 Project loaded. [yellow]({len(load_warnings)} model(s) missing compiled SQL — use --verbose for details)[/yellow]")
 
     if select:
         project = apply_select(project, select)
@@ -275,7 +296,12 @@ def ci_check(
 
     console.print(f"⚖️  Scoring project and checking thresholds...")
     scorer = Scorer(config)
-    scorer.score_project(project, apply_zscore=apply_zscore)
+    with warnings.catch_warnings(record=True) as caught_warnings:
+        warnings.simplefilter("always")
+        scorer.score_project(project, apply_zscore=apply_zscore)
+    for w in caught_warnings:
+        if issubclass(w.category, UserWarning):
+            console.print(f"  [yellow]⚠ {w.message}[/yellow]")
 
     problematic_models = []
     if apply_zscore:
@@ -372,12 +398,20 @@ def impact(
     from collections import deque
 
     console.print(f"🔍 Loading dbt project: [bold cyan]{project_path}[/bold cyan]")
-    try:
-        loader = ManifestLoader(project_path, dialect=dialect)
-        project = loader.load()
-    except Exception as e:
-        console.print(f"[bold red]Error loading manifest file: {e}[/bold red]")
-        raise typer.Exit(code=1)
+    with warnings.catch_warnings(record=True) as caught_warnings:
+        warnings.simplefilter("always")
+        try:
+            loader = ManifestLoader(project_path, dialect=dialect)
+            project = loader.load()
+        except Exception as e:
+            console.print(f"[bold red]Error loading manifest file: {e}[/bold red]")
+            raise typer.Exit(code=1)
+    load_warnings = [w for w in caught_warnings if issubclass(w.category, UserWarning)]
+    if load_warnings and verbose:
+        for w in load_warnings:
+            console.print(f"  [yellow]⚠ {w.message}[/yellow]")
+    if load_warnings:
+        console.print(f"🔍 Project loaded. [yellow]({len(load_warnings)} model(s) missing compiled SQL — use --verbose for details)[/yellow]")
 
     if select:
         project = apply_select(project, select)
