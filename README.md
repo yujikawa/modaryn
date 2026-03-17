@@ -1,5 +1,11 @@
 # modaryn
 ![modaryn](./docs/assets/header.png)
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
+[![dbt](https://img.shields.io/badge/dbt-compatible-orange.svg)](https://www.getdbt.com/)
+[![sqlglot](https://img.shields.io/badge/powered%20by-sqlglot-blueviolet.svg)](https://github.com/tobymao/sqlglot)
+
 modaryn analyzes dbt projects to score model complexity and structural importance,
 helping teams identify high-risk and high-impact data models.
 

@@ -1,5 +1,10 @@
 ![modaryn](./docs/assets/header.png)
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
+[![dbt](https://img.shields.io/badge/dbt-compatible-orange.svg)](https://www.getdbt.com/)
+[![sqlglot](https://img.shields.io/badge/powered%20by-sqlglot-blueviolet.svg)](https://github.com/tobymao/sqlglot)
+
 ### 概要
 `modaryn` は、dbt プロジェクトを分析するための Python 製 CLI ツールです。各モデルを以下の3つの観点でスコアリングし、高リスク・高影響なモデルを特定するのに役立ちます。
 
