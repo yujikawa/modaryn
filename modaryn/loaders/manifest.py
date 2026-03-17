@@ -1,7 +1,7 @@
 import json
 import warnings
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 import yaml
 
 from modaryn.analyzers.sql_complexity import SqlComplexityAnalyzer
@@ -9,9 +9,9 @@ from modaryn.domain.model import DbtModel, DbtProject, DbtColumn
 
 
 class ManifestLoader:
-    def __init__(self, project_path: Path, dialect: str = "bigquery"):
+    def __init__(self, project_path: Path, dialect: Optional[str] = None):
         self.project_path = project_path
-        self.sql_analyzer = SqlComplexityAnalyzer(dialect=dialect)
+        self._dialect_override = dialect
         self.manifest_path = self.project_path / "target" / "manifest.json"
         self.dbt_project_yml_path = self.project_path / "dbt_project.yml"
 
@@ -29,9 +29,33 @@ class ManifestLoader:
         return project_name
 
 
+    def detect_dialect(self) -> str:
+        """Reads adapter_type from manifest.json and maps it to a sqlglot dialect."""
+        _ADAPTER_TO_DIALECT = {
+            "bigquery": "bigquery",
+            "snowflake": "snowflake",
+            "redshift": "redshift",
+            "spark": "spark",
+            "databricks": "databricks",
+            "trino": "trino",
+            "postgres": "postgres",
+            "duckdb": "duckdb",
+        }
+        try:
+            with open(self.manifest_path, "r") as f:
+                metadata = json.load(f).get("metadata", {})
+            adapter_type = metadata.get("adapter_type", "").lower()
+            return _ADAPTER_TO_DIALECT.get(adapter_type, "ansi")
+        except Exception:
+            return "ansi"
+
     def load(self) -> DbtProject:
         if not self.manifest_path.exists():
             raise FileNotFoundError(f"Manifest file not found at {self.manifest_path}. Please ensure 'dbt compile' has been run in the dbt project at {self.project_path}.")
+
+        dialect = self._dialect_override or self.detect_dialect()
+        self.dialect = dialect
+        self.sql_analyzer = SqlComplexityAnalyzer(dialect=dialect)
 
         project_name = self._get_project_name_from_dbt_project_yml()
 

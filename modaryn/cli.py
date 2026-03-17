@@ -50,11 +50,11 @@ def score(
         readable=True,
         resolve_path=True,
     ),
-    dialect: str = typer.Option(
-        "bigquery",
+    dialect: Optional[str] = typer.Option(
+        None,
         "--dialect",
         "-d",
-        help="The SQL dialect to use for parsing.",
+        help="The SQL dialect to use for parsing (e.g. bigquery, snowflake, duckdb). Auto-detected from manifest.json if not specified.",
         case_sensitive=False,
     ),
     config: Optional[Path] = typer.Option(
@@ -104,7 +104,11 @@ def score(
         console.print(f"[bold red]Error loading manifest file: {e}[/bold red]")
         raise typer.Exit(code=1)
 
-    lineage_analyzer = LineageAnalyzer(dialect=dialect)
+    resolved_dialect = loader.dialect
+    if not dialect:
+        console.print(f"🔎 Auto-detected SQL dialect: [bold cyan]{resolved_dialect}[/bold cyan] (use --dialect to override)")
+
+    lineage_analyzer = LineageAnalyzer(dialect=resolved_dialect)
     total_models = len(project.models)
     with warnings.catch_warnings(record=True) as caught_warnings:
         warnings.simplefilter("always")
@@ -167,11 +171,11 @@ def ci_check(
         "-t",
         help="The maximum allowed Z-score for models. CI will fail if any model exceeds this.",
     ),
-    dialect: str = typer.Option(
-        "bigquery",
+    dialect: Optional[str] = typer.Option(
+        None,
         "--dialect",
         "-d",
-        help="The SQL dialect to use for parsing.",
+        help="The SQL dialect to use for parsing (e.g. bigquery, snowflake, duckdb). Auto-detected from manifest.json if not specified.",
         case_sensitive=False,
     ),
     config: Optional[Path] = typer.Option(
@@ -223,7 +227,11 @@ def ci_check(
         console.print(f"[bold red]Error loading manifest file: {e}[/bold red]")
         raise typer.Exit(code=1)
 
-    lineage_analyzer = LineageAnalyzer(dialect=dialect)
+    resolved_dialect = loader.dialect
+    if not dialect:
+        console.print(f"🔎 Auto-detected SQL dialect: [bold cyan]{resolved_dialect}[/bold cyan] (use --dialect to override)")
+
+    lineage_analyzer = LineageAnalyzer(dialect=resolved_dialect)
     total_models = len(project.models)
     with warnings.catch_warnings(record=True) as caught_warnings:
         warnings.simplefilter("always")
@@ -312,11 +320,11 @@ def impact(
         "-c",
         help="Column name to trace impact from.",
     ),
-    dialect: str = typer.Option(
-        "bigquery",
+    dialect: Optional[str] = typer.Option(
+        None,
         "--dialect",
         "-d",
-        help="The SQL dialect to use for parsing.",
+        help="The SQL dialect to use for parsing (e.g. bigquery, snowflake, duckdb). Auto-detected from manifest.json if not specified.",
         case_sensitive=False,
     ),
     verbose: bool = typer.Option(
@@ -339,7 +347,11 @@ def impact(
         console.print(f"[bold red]Error loading manifest file: {e}[/bold red]")
         raise typer.Exit(code=1)
 
-    lineage_analyzer = LineageAnalyzer(dialect=dialect)
+    resolved_dialect = loader.dialect
+    if not dialect:
+        console.print(f"🔎 Auto-detected SQL dialect: [bold cyan]{resolved_dialect}[/bold cyan] (use --dialect to override)")
+
+    lineage_analyzer = LineageAnalyzer(dialect=resolved_dialect)
     total_models = len(project.models)
     with warnings.catch_warnings(record=True) as caught_warnings:
         warnings.simplefilter("always")

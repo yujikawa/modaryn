@@ -278,6 +278,7 @@ def test_score_command_with_apply_zscore_option_calls_scorer_correctly(
 
     mock_loader_instance = MagicMock()
     mock_loader_instance.load.return_value = mock_project_instance
+    mock_loader_instance.dialect = "duckdb"
     mock_manifest_loader.return_value = mock_loader_instance
 
     mock_scorer_instance = MagicMock()
@@ -292,7 +293,7 @@ def test_score_command_with_apply_zscore_option_calls_scorer_correctly(
 
     # Assert
     assert result.exit_code == 0
-    mock_manifest_loader.assert_called_once_with(dbt_project_with_compiled_sql, dialect="bigquery")
+    mock_manifest_loader.assert_called_once_with(dbt_project_with_compiled_sql, dialect=None)
     mock_loader_instance.load.assert_called_once()
     mock_scorer.assert_called_once_with(None) # No config passed
     mock_scorer_instance.score_project.assert_called_once_with(mock_project_instance, apply_zscore=True)
