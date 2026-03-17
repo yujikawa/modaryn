@@ -1,0 +1,21 @@
+customer_id,customer_name,email,signup_date,country,city,segment,age_group,referral_source
+C001,Alice Johnson,alice@example.com,2022-01-15,US,New York,Premium,30-40,organic
+C002,Bob Smith,bob@example.com,2022-02-20,US,Los Angeles,Standard,20-30,paid_search
+C003,Carol Williams,carol@example.com,2022-03-10,UK,London,Premium,40-50,referral
+C004,David Brown,david@example.com,2022-03-25,US,Chicago,Standard,30-40,social
+C005,Eva Martinez,eva@example.com,2022-04-05,US,Miami,Premium,25-35,organic
+C006,Frank Lee,frank@example.com,2022-04-18,CA,Toronto,Standard,35-45,email
+C007,Grace Kim,grace@example.com,2022-05-02,US,Seattle,Premium,28-38,paid_search
+C008,Henry Chen,henry@example.com,2022-05-20,US,San Francisco,Standard,22-32,social
+C009,Isabel Davis,isabel@example.com,2022-06-08,UK,Manchester,Premium,45-55,organic
+C010,James Wilson,james@example.com,2022-06-22,US,Boston,Standard,30-40,referral
+C011,Karen Taylor,karen@example.com,2022-07-10,US,Austin,Premium,35-45,email
+C012,Liam Anderson,liam@example.com,2022-07-28,CA,Vancouver,Standard,25-35,paid_search
+C013,Mia Thomas,mia@example.com,2022-08-15,US,Denver,Premium,40-50,organic
+C014,Noah Jackson,noah@example.com,2022-08-30,US,Phoenix,Standard,20-30,social
+C015,Olivia White,olivia@example.com,2022-09-12,UK,Birmingham,Premium,30-40,referral
+C016,Paul Harris,paul@example.com,2022-10-01,US,Portland,Standard,45-55,email
+C017,Quinn Martin,quinn@example.com,2022-10-18,US,Nashville,Premium,25-35,paid_search
+C018,Rachel Garcia,rachel@example.com,2022-11-05,US,Atlanta,Standard,35-45,organic
+C019,Sam Rodriguez,sam@example.com,2022-11-22,US,Dallas,Premium,28-38,social
+C020,Tina Lewis,tina@example.com,2022-12-10,CA,Montreal,Standard,30-40,referral

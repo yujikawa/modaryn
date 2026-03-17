@@ -1,0 +1,79 @@
+version: 2
+
+models:
+  - name: dim_customers
+    description: Customer dimension with order history, cohort, and status information
+    columns:
+      - name: customer_id
+        tests:
+          - unique
+          - not_null
+      - name: customer_name
+        tests:
+          - not_null
+      - name: email
+        tests:
+          - unique
+          - not_null
+      - name: signup_date
+        tests:
+          - not_null
+      - name: country
+        tests:
+          - not_null
+      - name: segment
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Premium', 'Standard']
+      - name: customer_status
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['prospect', 'active', 'at_risk', 'lapsed']
+
+  - name: fct_customer_ltv
+    description: Customer lifetime value scores with projected annual revenue and LTV segments
+    columns:
+      - name: customer_id
+        tests:
+          - unique
+          - not_null
+      - name: total_revenue
+        tests:
+          - not_null
+      - name: ltv_segment
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['champion', 'loyal', 'promising', 'new_customer', 'at_risk']
+
+  - name: fct_customer_churn_risk
+    description: Customer churn risk scores based on recency, frequency, and engagement signals
+    columns:
+      - name: customer_id
+        tests:
+          - unique
+          - not_null
+      - name: total_risk_score
+        tests:
+          - not_null
+      - name: churn_risk_tier
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['critical', 'high', 'medium', 'low']
+
+  - name: fct_customer_acquisition
+    description: Customer acquisition metrics with cohort and first-order attribution
+    columns:
+      - name: customer_id
+        tests:
+          - unique
+          - not_null
+      - name: signup_date
+        tests:
+          - not_null
+      - name: country
+        tests:
+          - not_null

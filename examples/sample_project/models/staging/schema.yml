@@ -1,0 +1,189 @@
+version: 2
+
+sources:
+  - name: main
+    database: dev
+    schema: main
+    tables:
+      - name: raw_customers
+        description: Raw customer data from the e-commerce platform
+        columns:
+          - name: customer_id
+            description: Unique customer identifier
+            tests:
+              - unique
+              - not_null
+          - name: email
+            description: Customer email address
+            tests:
+              - unique
+              - not_null
+      - name: raw_orders
+        description: Raw orders data
+        columns:
+          - name: order_id
+            description: Unique order identifier
+            tests:
+              - unique
+              - not_null
+          - name: customer_id
+            tests:
+              - not_null
+      - name: raw_order_items
+        description: Raw order line items
+        columns:
+          - name: order_item_id
+            description: Unique order item identifier
+            tests:
+              - unique
+              - not_null
+          - name: order_id
+            tests:
+              - not_null
+      - name: raw_products
+        description: Raw product catalog
+        columns:
+          - name: product_id
+            description: Unique product identifier
+            tests:
+              - unique
+              - not_null
+      - name: raw_marketing_spend
+        description: Raw marketing spend data by campaign and channel
+        columns:
+          - name: spend_id
+            description: Unique spend record identifier
+            tests:
+              - unique
+              - not_null
+      - name: raw_web_sessions
+        description: Raw web session data
+        columns:
+          - name: session_id
+            description: Unique session identifier
+            tests:
+              - unique
+              - not_null
+      - name: raw_returns
+        description: Raw order return records
+        columns:
+          - name: return_id
+            description: Unique return identifier
+            tests:
+              - unique
+              - not_null
+
+models:
+  - name: stg_customers
+    description: Staged customer data with cleaned types
+    columns:
+      - name: customer_id
+        description: Unique customer identifier
+        tests:
+          - unique
+          - not_null
+      - name: email
+        tests:
+          - unique
+          - not_null
+      - name: signup_date
+        tests:
+          - not_null
+      - name: country
+        tests:
+          - not_null
+      - name: segment
+        tests:
+          - not_null
+
+  - name: stg_orders
+    description: Staged orders with cleaned types and coalesced coupon codes
+    columns:
+      - name: order_id
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        tests:
+          - not_null
+      - name: order_date
+        tests:
+          - not_null
+      - name: status
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['completed', 'returned', 'cancelled']
+
+  - name: stg_order_items
+    description: Staged order items with computed line totals
+    columns:
+      - name: order_item_id
+        tests:
+          - unique
+          - not_null
+      - name: order_id
+        tests:
+          - not_null
+      - name: product_id
+        tests:
+          - not_null
+      - name: line_total
+        tests:
+          - not_null
+
+  - name: stg_products
+    description: Staged product catalog with computed margin fields
+    columns:
+      - name: product_id
+        tests:
+          - unique
+          - not_null
+      - name: product_name
+        tests:
+          - not_null
+      - name: category
+        tests:
+          - not_null
+
+  - name: stg_marketing_spend
+    description: Staged marketing spend with computed click-through and conversion rates
+    columns:
+      - name: spend_id
+        tests:
+          - unique
+          - not_null
+      - name: channel
+        tests:
+          - not_null
+      - name: spend_date
+        tests:
+          - not_null
+
+  - name: stg_web_sessions
+    description: Staged web sessions with engagement level classification
+    columns:
+      - name: session_id
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        tests:
+          - not_null
+      - name: session_date
+        tests:
+          - not_null
+
+  - name: stg_returns
+    description: Staged product return records
+    columns:
+      - name: return_id
+        tests:
+          - unique
+          - not_null
+      - name: order_id
+        tests:
+          - not_null
+      - name: return_date
+        tests:
+          - not_null

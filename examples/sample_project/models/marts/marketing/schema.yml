@@ -1,0 +1,42 @@
+version: 2
+
+models:
+  - name: dim_channels
+    description: Channel dimension with type, paid status, and CPC range metadata
+    columns:
+      - name: channel_name
+        tests:
+          - unique
+          - not_null
+      - name: channel_type
+        tests:
+          - not_null
+      - name: is_paid
+        tests:
+          - not_null
+
+  - name: fct_marketing_roi
+    description: Marketing ROI by channel and month with spend share and ROI tier
+    columns:
+      - name: channel
+        tests:
+          - not_null
+      - name: spend_month
+        tests:
+          - not_null
+      - name: roi_tier
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['excellent', 'good', 'break_even', 'organic', 'negative_roi']
+
+  - name: fct_attribution
+    description: Multi-touch attribution model with first-touch, last-touch, and linear attribution
+    columns:
+      - name: channel
+        tests:
+          - unique
+          - not_null
+      - name: unique_customers
+        tests:
+          - not_null

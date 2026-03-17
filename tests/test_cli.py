@@ -54,59 +54,50 @@ def test_sql_complexity_analysis_with_compiled_sql(dbt_project_with_compiled_sql
     loader = ManifestLoader(dbt_project_with_compiled_sql)
     project = loader.load()
 
-    # int_customer_order_summary
-    model_ics = project.get_model("model.sample_project.int_customer_order_summary")
-    assert model_ics.complexity.join_count == 2
-    assert model_ics.complexity.cte_count == 2
-    assert model_ics.complexity.conditional_count == 2
-    assert model_ics.complexity.where_count == 0
-    assert model_ics.complexity.sql_char_count == 815 # Updated from 1076
-    assert model_ics.downstream_model_count == 1 # fct_customer_product_affinity
+    # int_orders_enriched: 2 JOINs, 5 CTEs, no conditionals, no WHERE
+    model_ioe = project.get_model("model.sample_project.int_orders_enriched")
+    assert model_ioe.complexity.join_count == 2
+    assert model_ioe.complexity.cte_count == 5
+    assert model_ioe.complexity.conditional_count == 0
+    assert model_ioe.complexity.where_count == 0
+    assert model_ioe.complexity.sql_char_count == 987
+    assert model_ioe.downstream_model_count == 7
 
-    # fct_customer_product_affinity
-    model_fcpa = project.get_model("model.sample_project.fct_customer_product_affinity")
-    assert model_fcpa.complexity.join_count == 1
-    assert model_fcpa.complexity.cte_count == 2
-    assert model_fcpa.complexity.conditional_count == 0
-    assert model_fcpa.complexity.where_count == 2 # "where total_product_spend > 0" and "where rnk <= 3"
-    assert model_fcpa.complexity.sql_char_count == 806 # Updated from 819
-    assert model_fcpa.downstream_model_count == 0
+    # fct_customer_churn_risk: complex model with many WHEN branches
+    model_fcr = project.get_model("model.sample_project.fct_customer_churn_risk")
+    assert model_fcr.complexity.join_count == 2
+    assert model_fcr.complexity.cte_count == 4
+    assert model_fcr.complexity.conditional_count == 14
+    assert model_fcr.complexity.where_count == 0
+    assert model_fcr.complexity.sql_char_count == 1882
+    assert model_fcr.downstream_model_count == 0
 
-    # int_order_product_details
-    model_iopd = project.get_model("model.sample_project.int_order_product_details")
-    assert model_iopd.complexity.join_count == 1
-    assert model_iopd.complexity.cte_count == 1
-    assert model_iopd.complexity.conditional_count == 0
-    assert model_iopd.complexity.where_count == 0
-    assert model_iopd.complexity.sql_char_count == 290 # Updated from 283
-    assert model_iopd.downstream_model_count == 1 # fct_customer_product_affinity
-
-    # stg_orders
+    # stg_orders: simple staging model, no JOINs/CTEs/conditions
     model_so = project.get_model("model.sample_project.stg_orders")
     assert model_so.complexity.join_count == 0
     assert model_so.complexity.cte_count == 0
     assert model_so.complexity.conditional_count == 0
     assert model_so.complexity.where_count == 0
-    assert model_so.complexity.sql_char_count == 89 # Updated from 110
-    assert model_so.downstream_model_count == 12 # Updated from 2
+    assert model_so.complexity.sql_char_count == 166
+    assert model_so.downstream_model_count == 3
 
-    # stg_products
+    # stg_products: simple staging model
     model_sp = project.get_model("model.sample_project.stg_products")
     assert model_sp.complexity.join_count == 0
     assert model_sp.complexity.cte_count == 0
     assert model_sp.complexity.conditional_count == 0
     assert model_sp.complexity.where_count == 0
-    assert model_sp.complexity.sql_char_count == 67 # Updated from 80
-    assert model_sp.downstream_model_count == 4 # Updated from 2
+    assert model_sp.complexity.sql_char_count == 242
+    assert model_sp.downstream_model_count == 2
 
-    # stg_customers
+    # stg_customers: simple staging model
     model_sc = project.get_model("model.sample_project.stg_customers")
     assert model_sc.complexity.join_count == 0
     assert model_sc.complexity.cte_count == 0
     assert model_sc.complexity.conditional_count == 0
     assert model_sc.complexity.where_count == 0
-    assert model_sc.complexity.sql_char_count == 81 # Updated from 94
-    assert model_sc.downstream_model_count == 3 # Updated from 4
+    assert model_sc.complexity.sql_char_count == 157
+    assert model_sc.downstream_model_count == 3
 
 
 
@@ -129,9 +120,8 @@ def test_score_command_to_markdown_file(dbt_project_with_compiled_sql, tmp_path)
     content = output_file.read_text()
     assert "# Modaryn Score and Scan Report" in content
     assert "| Rank | Model Name | Score (Raw) | Quality Score | JOINs | CTEs | Conditionals | WHEREs | SQL Chars | Downstream Children | Col. Down | Tests | Coverage (%) |" in content
-    assert "int_customer_order_summary" in content
-    assert "fct_customer_product_affinity" in content
-    assert "int_order_product_details" in content
+    assert "fct_customer_churn_risk" in content
+    assert "int_orders_enriched" in content
     assert "stg_orders" in content
     assert "stg_products" in content
     assert "stg_customers" in content
@@ -147,7 +137,7 @@ def test_score_command_to_markdown_file_with_zscore(dbt_project_with_compiled_sq
     content = output_file.read_text()
     assert "# Modaryn Score and Scan Report" in content
     assert "| Rank | Model Name | Score (Z-Score) | Quality Score | JOINs | CTEs | Conditionals | WHEREs | SQL Chars | Downstream Children | Col. Down | Tests | Coverage (%) |" in content
-    assert "int_customer_order_summary" in content
+    assert "fct_customer_churn_risk" in content
 
 
 def test_naked_invoke_shows_logo():
@@ -168,61 +158,59 @@ def test_ci_check_command_is_listed_in_help():
     assert "ci-check" in result.stdout
 
 def test_ci_check_command_fails_on_zscore_threshold_exceeded(dbt_project_with_compiled_sql):
-    # Models exceeding 1.0 Z-score: 4 models
+    # Models exceeding 1.0 Z-score: 5 models (fct_customer_churn_risk, fct_customer_ltv, int_orders_enriched, fct_attribution, int_customer_order_metrics)
     test_threshold = 1.0
     result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold), "--apply-zscore"])
-    
+
     assert result.exit_code == 1
     assert "Threshold exceeded by 5 models" in result.stdout
-    assert "fct_customer_segmentation" in result.stdout # Ensure high-score models are listed
+    assert "fct_customer_churn_risk" in result.stdout
     assert "--- CI Check Summary ---" in result.stdout
     assert "Status: FAILED" in result.stdout
     assert "5 models exceeded threshold." in result.stdout
-    assert "Total models checked: 30" in result.stdout
+    assert "Total models checked: 28" in result.stdout
     assert f"Threshold: {test_threshold:.3f}" in result.stdout
 
 def test_ci_check_command_passes_on_zscore_threshold_not_exceeded(dbt_project_with_compiled_sql):
-    # Set a threshold higher than the highest Z-score
+    # Set a threshold higher than the highest Z-score (fct_customer_churn_risk: 2.65)
     test_threshold = 10.0
     result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold), "--apply-zscore"])
-    
-    assert result.exit_code == 0
-    assert "All models are within the defined threshold." in result.stdout
-    assert "Threshold exceeded" not in result.stdout # Ensure no failure message
-    assert "--- CI Check Summary ---" in result.stdout
-    assert "Status: PASSED" in result.stdout
-    assert "All models are within the defined threshold." in result.stdout
-    assert "Total models checked: 30" in result.stdout
-    assert f"Threshold: {test_threshold:.3f}" in result.stdout
 
-
-def test_ci_check_command_fails_on_threshold_exceeded(dbt_project_with_compiled_sql):
-    # Models exceeding 17.0 raw score: fct_customer_segmentation (17.27) (1 model)
-    test_threshold = 16.0
-    result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold)])
-    
-    assert result.exit_code == 1
-    assert "Threshold exceeded by 1 models" in result.stdout
-    assert "fct_customer_segmentation" in result.stdout # Ensure high-score models are listed
-    assert "--- CI Check Summary ---" in result.stdout
-    assert "Status: FAILED" in result.stdout
-    assert "1 models exceeded threshold." in result.stdout
-    assert "Total models checked: 30" in result.stdout
-    assert f"Threshold: {test_threshold:.3f}" in result.stdout
-
-
-def test_ci_check_command_passes_on_threshold_not_exceeded(dbt_project_with_compiled_sql):
-    # Set a threshold higher than the highest raw score (fct_customer_segmentation: 20.77)
-    test_threshold = 21.0 # Updated from 24.0
-    result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold)])
-    
     assert result.exit_code == 0
     assert "All models are within the defined threshold." in result.stdout
     assert "Threshold exceeded" not in result.stdout
     assert "--- CI Check Summary ---" in result.stdout
     assert "Status: PASSED" in result.stdout
+    assert "Total models checked: 28" in result.stdout
+    assert f"Threshold: {test_threshold:.3f}" in result.stdout
+
+
+def test_ci_check_command_fails_on_threshold_exceeded(dbt_project_with_compiled_sql):
+    # Models exceeding 35.0 raw score: fct_customer_churn_risk (39.32) (1 model)
+    test_threshold = 35.0
+    result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold)])
+
+    assert result.exit_code == 1
+    assert "Threshold exceeded by 1 models" in result.stdout
+    assert "fct_customer_churn_risk" in result.stdout
+    assert "--- CI Check Summary ---" in result.stdout
+    assert "Status: FAILED" in result.stdout
+    assert "1 models exceeded threshold." in result.stdout
+    assert "Total models checked: 28" in result.stdout
+    assert f"Threshold: {test_threshold:.3f}" in result.stdout
+
+
+def test_ci_check_command_passes_on_threshold_not_exceeded(dbt_project_with_compiled_sql):
+    # Set a threshold higher than the highest raw score (fct_customer_churn_risk: 39.32)
+    test_threshold = 45.0
+    result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold)])
+
+    assert result.exit_code == 0
     assert "All models are within the defined threshold." in result.stdout
-    assert "Total models checked: 30" in result.stdout # Updated count
+    assert "Threshold exceeded" not in result.stdout
+    assert "--- CI Check Summary ---" in result.stdout
+    assert "Status: PASSED" in result.stdout
+    assert "Total models checked: 28" in result.stdout
     assert f"Threshold: {test_threshold:.3f}" in result.stdout
 
 
@@ -242,25 +230,23 @@ def test_terminal_output_highlights_problematic_models(dbt_project_with_compiled
         terminal_output = TerminalOutput()
         
         # Use models from sample_project that exceed a threshold
-        # int_customer_order_summary (1.69), fct_customer_product_affinity (0.97)
+        # fct_customer_churn_risk (2.65), fct_customer_ltv (1.95)
         problematic_models = [
-            project.get_model("model.sample_project.int_customer_order_summary"),
-            project.get_model("model.sample_project.fct_customer_product_affinity")
+            project.get_model("model.sample_project.fct_customer_churn_risk"),
+            project.get_model("model.sample_project.fct_customer_ltv")
         ]
-        test_threshold = 0.5 # Set threshold so these two models are problematic
-        
-        terminal_output.generate_report(project, problematic_models, threshold=test_threshold) # Changed project argument
-        
+        test_threshold = 1.5
+
+        terminal_output.generate_report(project, problematic_models, threshold=test_threshold)
+
         output_str = mock_file.getvalue()
 
-        # # Check that problematic models are highlighted in the output (e.g., with '[red]' tag)
         # \x1b[31m は red の ANSI エスケープコード
-        assert "\x1b[31m" in output_str 
-        assert "int_customer_order_summary" in output_str
-        # 色がついている行にモデル名があることを確認
-        assert any("\x1b[31m" in line and "int_customer_order_summary" in line 
+        assert "\x1b[31m" in output_str
+        assert "fct_customer_churn_risk" in output_str
+        assert any("\x1b[31m" in line and "fct_customer_churn_risk" in line
                    for line in output_str.splitlines())
-        assert any("\x1b[31m" in line and "fct_customer_product_affinity" in line 
+        assert any("\x1b[31m" in line and "fct_customer_ltv" in line
                 for line in output_str.splitlines())
 
 @patch('modaryn.cli.Scorer')

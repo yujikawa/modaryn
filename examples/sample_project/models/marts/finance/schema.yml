@@ -1,0 +1,65 @@
+version: 2
+
+models:
+  - name: dim_dates
+    description: Date dimension spanning 2023 with calendar attributes
+    columns:
+      - name: date_day
+        tests:
+          - unique
+          - not_null
+      - name: year
+        tests:
+          - not_null
+      - name: month
+        tests:
+          - not_null
+      - name: quarter
+        tests:
+          - not_null
+
+  - name: fct_orders
+    description: Order fact table with customer segment and date dimension attributes
+    columns:
+      - name: order_id
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        tests:
+          - not_null
+      - name: order_date
+        tests:
+          - not_null
+      - name: profitability_tier
+        tests:
+          - not_null
+
+  - name: fct_revenue_monthly
+    description: Monthly revenue by channel with MoM growth and channel attributes
+    columns:
+      - name: revenue_month
+        tests:
+          - not_null
+      - name: channel
+        tests:
+          - not_null
+      - name: monthly_revenue
+        tests:
+          - not_null
+
+  - name: fct_product_profitability
+    description: Product-level profitability with return impact and margin tiers
+    columns:
+      - name: product_id
+        tests:
+          - unique
+          - not_null
+      - name: product_name
+        tests:
+          - not_null
+      - name: margin_tier
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['high_margin', 'normal_margin', 'low_margin', 'loss_making']

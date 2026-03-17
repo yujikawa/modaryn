@@ -1,0 +1,4 @@
+return_id,order_id,order_item_id,return_date,reason,status,refund_amount
+R001,O009,I014,2023-03-05,defective,approved,79.99
+R002,O023,I032,2023-06-20,wrong_item,approved,129.99
+R003,O038,I048,2023-10-15,changed_mind,rejected,0.00

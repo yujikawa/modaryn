@@ -1,0 +1,11 @@
+product_id,product_name,category,brand,cost_price,list_price,is_active
+P001,Pro Laptop 15,Electronics,TechCo,550.00,999.00,true
+P002,Wireless Headphones,Electronics,SoundWave,80.00,249.99,true
+P003,4K Monitor 27,Electronics,ViewTech,600.00,1299.00,true
+P004,Mechanical Keyboard,Accessories,TypeMaster,30.00,79.99,true
+P005,USB-C Hub,Accessories,ConnectPro,15.00,49.99,true
+P006,Ergonomic Mouse,Accessories,ComfortClick,50.00,199.99,true
+P007,Webcam HD,Peripherals,VisionTech,40.00,129.99,true
+P008,Desk Lamp LED,Office,LightUp,20.00,89.99,true
+P009,Cable Organizer,Office,TidyDesk,5.00,34.99,true
+P010,Laptop Stand,Accessories,RaiseUp,35.00,119.99,false

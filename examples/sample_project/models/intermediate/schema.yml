@@ -1,0 +1,136 @@
+version: 2
+
+models:
+  - name: int_orders_enriched
+    description: Orders enriched with item counts, revenue, and profit from order items and products
+    columns:
+      - name: order_id
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        tests:
+          - not_null
+      - name: order_date
+        tests:
+          - not_null
+      - name: status
+        tests:
+          - not_null
+
+  - name: int_customer_order_metrics
+    description: Per-customer order metrics including recency, frequency, and monetary values
+    columns:
+      - name: customer_id
+        tests:
+          - unique
+          - not_null
+      - name: total_orders
+        tests:
+          - not_null
+      - name: total_revenue
+        tests:
+          - not_null
+      - name: frequency_segment
+        tests:
+          - not_null
+
+  - name: int_product_sales_metrics
+    description: Per-product sales performance metrics
+    columns:
+      - name: product_id
+        tests:
+          - unique
+          - not_null
+      - name: product_name
+        tests:
+          - not_null
+      - name: total_revenue
+        tests:
+          - not_null
+
+  - name: int_customer_web_behavior
+    description: Aggregated web session behavior per customer
+    columns:
+      - name: customer_id
+        tests:
+          - unique
+          - not_null
+      - name: total_sessions
+        tests:
+          - not_null
+
+  - name: int_daily_revenue
+    description: Daily revenue aggregated by order date and channel
+    columns:
+      - name: order_date
+        tests:
+          - not_null
+      - name: channel
+        tests:
+          - not_null
+      - name: daily_revenue
+        tests:
+          - not_null
+
+  - name: int_monthly_revenue
+    description: Monthly revenue aggregated by channel with cumulative window function
+    columns:
+      - name: revenue_month
+        tests:
+          - not_null
+      - name: channel
+        tests:
+          - not_null
+      - name: monthly_revenue
+        tests:
+          - not_null
+
+  - name: int_returns_by_order
+    description: Returns joined with order data for enriched return analysis
+    columns:
+      - name: return_id
+        tests:
+          - unique
+          - not_null
+      - name: order_id
+        tests:
+          - not_null
+
+  - name: int_marketing_channel_metrics
+    description: Marketing channel performance metrics joined with revenue attribution
+    columns:
+      - name: channel
+        tests:
+          - not_null
+      - name: spend_month
+        tests:
+          - not_null
+      - name: total_spend
+        tests:
+          - not_null
+
+  - name: int_customer_cohorts
+    description: Customer cohort assignment based on first order date
+    columns:
+      - name: customer_id
+        tests:
+          - unique
+          - not_null
+      - name: signup_date
+        tests:
+          - not_null
+      - name: conversion_type
+        tests:
+          - not_null
+
+  - name: int_order_profitability
+    description: Orders with profitability tier classification and refund adjustments
+    columns:
+      - name: order_id
+        tests:
+          - unique
+          - not_null
+      - name: profitability_tier
+        tests:
+          - not_null
