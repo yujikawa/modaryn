@@ -1,3 +1,4 @@
+import warnings
 import yaml
 from pathlib import Path
 from typing import Dict, List
@@ -18,13 +19,31 @@ class Scorer:
 
         if config_path:
             with open(config_path, "r") as f:
-                user_weights = yaml.safe_load(f)
-            if "sql_complexity" in user_weights:
-                weights["sql_complexity"].update(user_weights["sql_complexity"])
-            if "importance" in user_weights:
-                weights["importance"].update(user_weights["importance"])
-            if "quality" in user_weights:
-                weights["quality"].update(user_weights["quality"])
+                user_weights = yaml.safe_load(f) or {}
+
+            known_sections = {"sql_complexity", "importance", "quality"}
+            unknown_sections = set(user_weights.keys()) - known_sections
+            if unknown_sections:
+                warnings.warn(
+                    f"Unknown sections in config '{config_path}': {sorted(unknown_sections)}. "
+                    f"Valid sections are: {sorted(known_sections)}.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+
+            for section in known_sections:
+                if section in user_weights:
+                    known_keys = set(weights[section].keys())
+                    user_keys = set(user_weights[section].keys())
+                    unknown_keys = user_keys - known_keys
+                    if unknown_keys:
+                        warnings.warn(
+                            f"Unknown keys in config section '{section}': {sorted(unknown_keys)}. "
+                            f"Valid keys are: {sorted(known_keys)}.",
+                            UserWarning,
+                            stacklevel=2,
+                        )
+                    weights[section].update(user_weights[section])
         return weights
 
     def score_project(self, project: DbtProject, apply_zscore: bool = False):
@@ -81,10 +100,18 @@ class Scorer:
             model.downstream_column_count
             * importance_weights.get("downstream_column_count", 0)
         )
+        importance_score += (
+            model.downstream_column_model_spread
+            * importance_weights.get("downstream_column_model_spread", 0)
+        )
         
         quality_score = 0
         quality_score += model.test_count * quality_weights.get("test_count", 0)
         quality_score += model.column_test_coverage * quality_weights.get("column_coverage", 0)
+        quality_score -= (
+            model.untested_downstream_column_count
+            * quality_weights.get("untested_downstream_column_penalty", 0)
+        )
         model.quality_score = quality_score
         
         raw_score = complexity_score + importance_score - quality_score

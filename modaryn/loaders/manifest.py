@@ -1,6 +1,7 @@
 import json
+import warnings
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 import yaml
 
 from modaryn.analyzers.sql_complexity import SqlComplexityAnalyzer
@@ -8,9 +9,9 @@ from modaryn.domain.model import DbtModel, DbtProject, DbtColumn
 
 
 class ManifestLoader:
-    def __init__(self, project_path: Path, dialect: str = "bigquery"):
+    def __init__(self, project_path: Path, dialect: Optional[str] = None):
         self.project_path = project_path
-        self.sql_analyzer = SqlComplexityAnalyzer(dialect=dialect)
+        self._dialect_override = dialect
         self.manifest_path = self.project_path / "target" / "manifest.json"
         self.dbt_project_yml_path = self.project_path / "dbt_project.yml"
 
@@ -28,9 +29,33 @@ class ManifestLoader:
         return project_name
 
 
+    def detect_dialect(self) -> str:
+        """Reads adapter_type from manifest.json and maps it to a sqlglot dialect."""
+        _ADAPTER_TO_DIALECT = {
+            "bigquery": "bigquery",
+            "snowflake": "snowflake",
+            "redshift": "redshift",
+            "spark": "spark",
+            "databricks": "databricks",
+            "trino": "trino",
+            "postgres": "postgres",
+            "duckdb": "duckdb",
+        }
+        try:
+            with open(self.manifest_path, "r") as f:
+                metadata = json.load(f).get("metadata", {})
+            adapter_type = metadata.get("adapter_type", "").lower()
+            return _ADAPTER_TO_DIALECT.get(adapter_type, "ansi")
+        except Exception:
+            return "ansi"
+
     def load(self) -> DbtProject:
         if not self.manifest_path.exists():
             raise FileNotFoundError(f"Manifest file not found at {self.manifest_path}. Please ensure 'dbt compile' has been run in the dbt project at {self.project_path}.")
+
+        dialect = self._dialect_override or self.detect_dialect()
+        self.dialect = dialect
+        self.sql_analyzer = SqlComplexityAnalyzer(dialect=dialect)
 
         project_name = self._get_project_name_from_dbt_project_yml()
 
@@ -48,11 +73,18 @@ class ManifestLoader:
                 compiled_sql_path = compiled_code_dir / model_relative_path
 
                 compiled_sql = ""
+                complexity = None
                 if compiled_sql_path.exists():
                     with open(compiled_sql_path, "r") as sql_f:
                         compiled_sql = sql_f.read()
+                    complexity = self.sql_analyzer.analyze(compiled_sql)
                 else:
-                    print(f"Warning: Compiled SQL not found for model {node_data.get('name')} at {compiled_sql_path}. Using empty string for analysis.")
+                    warnings.warn(
+                        f"Compiled SQL not found for model {node_data.get('name')} at {compiled_sql_path}. "
+                        f"Complexity metrics will be unavailable for this model.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
 
                 # Create DbtColumn objects
                 model_columns = {
@@ -67,7 +99,7 @@ class ManifestLoader:
                     raw_sql=compiled_sql,
                     columns=model_columns,
                     dependencies=self._get_node_dependencies(node_data),
-                    complexity=self.sql_analyzer.analyze(compiled_sql),
+                    complexity=complexity,
                 )
                 models[unique_id] = model
 
@@ -76,15 +108,14 @@ class ManifestLoader:
             if node_data.get("resource_type") == "test":
                 test_dependencies = node_data.get("depends_on", {}).get("nodes", [])
                 
+                column_name = node_data.get("column_name")
                 for dep_id in test_dependencies:
                     if dep_id in models:
                         target_model = models[dep_id]
                         target_model.test_count += 1
-                        
-                        column_name = node_data.get("column_name")
+
                         if column_name and column_name in target_model.columns:
                             target_model.columns[column_name].test_count += 1
-                        break # Assume test depends on only one model
 
         return DbtProject(models=models)
 

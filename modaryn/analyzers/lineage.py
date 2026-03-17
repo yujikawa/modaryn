@@ -1,4 +1,5 @@
-from typing import Dict, List, Set
+import warnings
+from typing import Callable, Dict, List, Optional, Set
 import sqlglot
 from sqlglot import exp
 from sqlglot.lineage import lineage
@@ -9,37 +10,64 @@ class LineageAnalyzer:
     def __init__(self, dialect: str = "bigquery"):
         self.dialect = dialect
 
-    def analyze(self, project: DbtProject):
+    def analyze(self, project: DbtProject, on_progress: Optional[Callable[[int, int], None]] = None):
         """
         Analyzes column-level lineage for all models in the project.
+        on_progress: optional callback(current, total) called after each model is processed.
         """
         schema = self._build_schema(project)
         # Store table names in lowercase for case-insensitive lookup
         table_to_id = {model.model_name.lower(): model.unique_id for model in project.models.values()}
 
-        for model in project.models.values():
+        models = list(project.models.values())
+        total = len(models)
+        for i, model in enumerate(models):
+            if on_progress:
+                on_progress(i + 1, total)
             if not model.raw_sql:
                 continue
 
             for column_name in model.columns:
                 try:
-                    # Try variations (Original, Uppercase, Quoted) to find the column in different dialects.
-                    # This handles cases like Snowflake (uppercase by default) or BigQuery (backticks).
+                    # Try variations ordered by likelihood for the dialect to minimize failed attempts.
+                    # BigQuery uses backticks; Snowflake/Redshift default to uppercase; others use lowercase.
                     node = None
-                    search_variations = [column_name, column_name.upper(), f'"{column_name}"', f'`{column_name}`']
-                    
+                    last_error = None
+                    search_variations = self._get_column_variations(column_name)
+
                     for variation in search_variations:
                         try:
                             node = lineage(variation, sql=model.raw_sql, schema=schema, dialect=self.dialect)
                             if node:
                                 break
-                        except Exception:
+                        except Exception as e:
+                            last_error = e
                             continue
-                    
+
                     if node:
                         self._extract_source_columns(model, column_name, node, table_to_id, project)
-                except Exception:
+                    elif last_error:
+                        warnings.warn(
+                            f"Lineage unavailable for column '{column_name}' in model '{model.model_name}': {last_error}",
+                            UserWarning,
+                            stacklevel=2,
+                        )
+                except Exception as e:
+                    warnings.warn(
+                        f"Lineage analysis failed for column '{column_name}' in model '{model.model_name}': {e}",
+                        UserWarning,
+                        stacklevel=2,
+                    )
                     continue
+
+    def _get_column_variations(self, column_name: str) -> List[str]:
+        """Returns column name variations ordered by likelihood for the current dialect."""
+        if self.dialect == "bigquery":
+            return [f'`{column_name}`', column_name, column_name.upper(), f'"{column_name}"']
+        elif self.dialect in ("snowflake", "redshift"):
+            return [column_name.upper(), column_name, f'"{column_name}"', f'`{column_name}`']
+        else:
+            return [column_name, column_name.upper(), f'"{column_name}"', f'`{column_name}`']
 
     def _build_schema(self, project: DbtProject) -> Dict:
         """

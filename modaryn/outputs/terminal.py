@@ -1,19 +1,23 @@
+import shutil
 from rich.console import Console
 from rich.table import Table
 from typing import Optional, List
 
 from ..domain.model import DbtProject, DbtModel, ScoreStatistics
-from . import OutputGenerator
+from . import OutputGenerator, _extract_complexity_fields
+
+_MIN_TABLE_WIDTH = 160
 
 
 class TerminalOutput(OutputGenerator):
     def __init__(self):
-        self.console = Console()
+        width = max(shutil.get_terminal_size((_MIN_TABLE_WIDTH, 24)).columns, _MIN_TABLE_WIDTH)
+        self.console = Console(width=width)
 
     def generate_report(self, project: DbtProject, problematic_models: Optional[List[DbtModel]] = None, threshold: Optional[float] = None, apply_zscore: bool = False, statistics: Optional[ScoreStatistics] = None) -> Optional[str]:
         table = Table(title="dbt Models Score and Scan Results", expand=True)
         table.add_column("Rank", justify="right", style="cyan", no_wrap=True)
-        table.add_column("Model Name", justify="left", style="white", ratio=1, no_wrap=False)
+        table.add_column("Model Name", justify="left", style="white", ratio=1, no_wrap=False, min_width=20)
 
         if apply_zscore:
             table.add_column("Score(Z)", justify="right", style="green", no_wrap=True)
@@ -46,18 +50,7 @@ class TerminalOutput(OutputGenerator):
         for i, model in enumerate(sorted_models):
             model_name_style = "[red]" if model.model_name in problematic_model_names else ""
             
-            if model.complexity:
-                join_count = str(model.complexity.join_count)
-                cte_count = str(model.complexity.cte_count)
-                conditional_count = str(model.complexity.conditional_count)
-                where_count = str(model.complexity.where_count)
-                sql_char_count = str(model.complexity.sql_char_count)
-            else:
-                join_count = "N/A"
-                cte_count = "N/A"
-                conditional_count = "N/A"
-                where_count = "N/A"
-                sql_char_count = "N/A"
+            join_count, cte_count, conditional_count, where_count, sql_char_count = _extract_complexity_fields(model)
 
             score_to_display = getattr(model, score_attr)
 

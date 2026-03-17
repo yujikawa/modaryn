@@ -1,7 +1,7 @@
 from typing import Optional, List
 
 from modaryn.domain.model import DbtProject, DbtModel, ScoreStatistics
-from . import OutputGenerator
+from . import OutputGenerator, _extract_complexity_fields
 
 
 class MarkdownOutput(OutputGenerator):
@@ -22,18 +22,7 @@ class MarkdownOutput(OutputGenerator):
             reverse=True,
         )
         for i, model in enumerate(sorted_models):
-            if model.complexity:
-                join_count = str(model.complexity.join_count)
-                cte_count = str(model.complexity.cte_count)
-                conditional_count = str(model.complexity.conditional_count)
-                where_count = str(model.complexity.where_count)
-                sql_char_count = str(model.complexity.sql_char_count)
-            else:
-                join_count = "N/A"
-                cte_count = "N/A"
-                conditional_count = "N/A"
-                where_count = "N/A"
-                sql_char_count = "N/A"
+            join_count, cte_count, conditional_count, where_count, sql_char_count = _extract_complexity_fields(model)
 
             score_to_display = getattr(model, score_attr)
             lines.append(

@@ -1,6 +1,8 @@
+import warnings
 import typer
 from pathlib import Path
 from rich.console import Console # Keep Console for general messages
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, MofNCompleteColumn
 from typing import Optional
 from enum import Enum
 
@@ -48,11 +50,11 @@ def score(
         readable=True,
         resolve_path=True,
     ),
-    dialect: str = typer.Option(
-        "bigquery",
+    dialect: Optional[str] = typer.Option(
+        None,
         "--dialect",
         "-d",
-        help="The SQL dialect to use for parsing.",
+        help="The SQL dialect to use for parsing (e.g. bigquery, snowflake, duckdb). Auto-detected from manifest.json if not specified.",
         case_sensitive=False,
     ),
     config: Optional[Path] = typer.Option(
@@ -84,6 +86,12 @@ def score(
         help="Path to write the output file.",
         writable=True,
     ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show detailed warnings (e.g. columns skipped during lineage analysis).",
+    ),
 ):
     """
     Analyzes and scores dbt models based on complexity and importance, displaying combined scan and score information.
@@ -96,9 +104,25 @@ def score(
         console.print(f"[bold red]Error loading manifest file: {e}[/bold red]")
         raise typer.Exit(code=1)
 
-    console.print(f"📊 Analyzing column-level lineage...")
-    lineage_analyzer = LineageAnalyzer(dialect=dialect)
-    lineage_analyzer.analyze(project)
+    resolved_dialect = loader.dialect
+    if not dialect:
+        console.print(f"🔎 Auto-detected SQL dialect: [bold cyan]{resolved_dialect}[/bold cyan] (use --dialect to override)")
+
+    lineage_analyzer = LineageAnalyzer(dialect=resolved_dialect)
+    total_models = len(project.models)
+    with warnings.catch_warnings(record=True) as caught_warnings:
+        warnings.simplefilter("always")
+        with Progress(SpinnerColumn(), TextColumn("{task.description}"), BarColumn(), MofNCompleteColumn(), console=console, transient=True) as progress:
+            task = progress.add_task(f"📊 Analyzing column-level lineage ({total_models} models)...", total=total_models)
+            lineage_analyzer.analyze(project, on_progress=lambda cur, _total: progress.update(task, completed=cur))
+    lineage_warnings = [w for w in caught_warnings if issubclass(w.category, UserWarning)]
+    if lineage_warnings and verbose:
+        for w in lineage_warnings:
+            console.print(f"  [yellow]⚠ {w.message}[/yellow]")
+    if lineage_warnings:
+        console.print(f"📊 Column-level lineage analysis complete. [yellow]({len(lineage_warnings)} column(s) skipped — use --verbose for details)[/yellow]")
+    else:
+        console.print(f"📊 Column-level lineage analysis complete.")
 
     console.print(f"⚖️  Scoring project...")
     scorer = Scorer(config)
@@ -127,7 +151,7 @@ def score(
             print(report_content)
     else:
         if output:
-            console.print("[bold yellow]Warning: --output is only supported for file-based formats. Printing to terminal.[/bold yellow]")
+            console.print("[bold yellow]Warning: --output is ignored when using terminal format. Use -f markdown or -f html to save to a file.[/bold yellow]")
 
 
 @app.command()
@@ -147,11 +171,11 @@ def ci_check(
         "-t",
         help="The maximum allowed Z-score for models. CI will fail if any model exceeds this.",
     ),
-    dialect: str = typer.Option(
-        "bigquery",
+    dialect: Optional[str] = typer.Option(
+        None,
         "--dialect",
         "-d",
-        help="The SQL dialect to use for parsing.",
+        help="The SQL dialect to use for parsing (e.g. bigquery, snowflake, duckdb). Auto-detected from manifest.json if not specified.",
         case_sensitive=False,
     ),
     config: Optional[Path] = typer.Option(
@@ -183,6 +207,12 @@ def ci_check(
         help="Path to write the output file.",
         writable=True,
     ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show detailed warnings (e.g. columns skipped during lineage analysis).",
+    ),
 ):
     """
     Checks dbt model complexity against a defined score threshold for CI pipelines.
@@ -197,9 +227,25 @@ def ci_check(
         console.print(f"[bold red]Error loading manifest file: {e}[/bold red]")
         raise typer.Exit(code=1)
 
-    console.print(f"📊 Analyzing column-level lineage...")
-    lineage_analyzer = LineageAnalyzer(dialect=dialect)
-    lineage_analyzer.analyze(project)
+    resolved_dialect = loader.dialect
+    if not dialect:
+        console.print(f"🔎 Auto-detected SQL dialect: [bold cyan]{resolved_dialect}[/bold cyan] (use --dialect to override)")
+
+    lineage_analyzer = LineageAnalyzer(dialect=resolved_dialect)
+    total_models = len(project.models)
+    with warnings.catch_warnings(record=True) as caught_warnings:
+        warnings.simplefilter("always")
+        with Progress(SpinnerColumn(), TextColumn("{task.description}"), BarColumn(), MofNCompleteColumn(), console=console, transient=True) as progress:
+            task = progress.add_task(f"📊 Analyzing column-level lineage ({total_models} models)...", total=total_models)
+            lineage_analyzer.analyze(project, on_progress=lambda cur, _total: progress.update(task, completed=cur))
+    lineage_warnings = [w for w in caught_warnings if issubclass(w.category, UserWarning)]
+    if lineage_warnings and verbose:
+        for w in lineage_warnings:
+            console.print(f"  [yellow]⚠ {w.message}[/yellow]")
+    if lineage_warnings:
+        console.print(f"📊 Column-level lineage analysis complete. [yellow]({len(lineage_warnings)} column(s) skipped — use --verbose for details)[/yellow]")
+    else:
+        console.print(f"📊 Column-level lineage analysis complete.")
 
     console.print(f"⚖️  Scoring project and checking thresholds...")
     scorer = Scorer(config)
@@ -246,9 +292,135 @@ def ci_check(
             print(report_content)
     else:
         if output:
-            console.print("[bold yellow]Warning: --output is only supported for file-based formats. Printing to terminal.[/bold yellow]")
+            console.print("[bold yellow]Warning: --output is ignored when using terminal format. Use -f markdown or -f html to save to a file.[/bold yellow]")
 
     raise typer.Exit(code=exit_code)
+
+
+@app.command()
+def impact(
+    project_path: Path = typer.Option(
+        ".",
+        "--project-path",
+        "-p",
+        help="Path to the dbt project directory.",
+        exists=True,
+        readable=True,
+        resolve_path=True,
+    ),
+    model: str = typer.Option(
+        ...,
+        "--model",
+        "-m",
+        help="Model name to trace impact from.",
+    ),
+    column: str = typer.Option(
+        ...,
+        "--column",
+        "-c",
+        help="Column name to trace impact from.",
+    ),
+    dialect: Optional[str] = typer.Option(
+        None,
+        "--dialect",
+        "-d",
+        help="The SQL dialect to use for parsing (e.g. bigquery, snowflake, duckdb). Auto-detected from manifest.json if not specified.",
+        case_sensitive=False,
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show detailed warnings (e.g. columns skipped during lineage analysis).",
+    ),
+):
+    """
+    Shows all downstream columns affected by a change to a specific column (column-level impact analysis).
+    """
+    from collections import deque
+
+    console.print(f"🔍 Loading dbt project: [bold cyan]{project_path}[/bold cyan]")
+    try:
+        loader = ManifestLoader(project_path, dialect=dialect)
+        project = loader.load()
+    except Exception as e:
+        console.print(f"[bold red]Error loading manifest file: {e}[/bold red]")
+        raise typer.Exit(code=1)
+
+    resolved_dialect = loader.dialect
+    if not dialect:
+        console.print(f"🔎 Auto-detected SQL dialect: [bold cyan]{resolved_dialect}[/bold cyan] (use --dialect to override)")
+
+    lineage_analyzer = LineageAnalyzer(dialect=resolved_dialect)
+    total_models = len(project.models)
+    with warnings.catch_warnings(record=True) as caught_warnings:
+        warnings.simplefilter("always")
+        with Progress(SpinnerColumn(), TextColumn("{task.description}"), BarColumn(), MofNCompleteColumn(), console=console, transient=True) as progress:
+            task = progress.add_task(f"📊 Analyzing column-level lineage ({total_models} models)...", total=total_models)
+            lineage_analyzer.analyze(project, on_progress=lambda cur, _total: progress.update(task, completed=cur))
+    lineage_warnings = [w for w in caught_warnings if issubclass(w.category, UserWarning)]
+    if lineage_warnings and verbose:
+        for w in lineage_warnings:
+            console.print(f"  [yellow]⚠ {w.message}[/yellow]")
+    if lineage_warnings:
+        console.print(f"📊 Column-level lineage analysis complete. [yellow]({len(lineage_warnings)} column(s) skipped — use --verbose for details)[/yellow]")
+    else:
+        console.print(f"📊 Column-level lineage analysis complete.")
+
+    # Find the target model
+    target_model_obj = next(
+        (m for m in project.models.values() if m.model_name == model), None
+    )
+    if not target_model_obj:
+        console.print(f"[bold red]Model '{model}' not found in project.[/bold red]")
+        raise typer.Exit(code=1)
+
+    if column not in target_model_obj.columns:
+        available = ", ".join(target_model_obj.columns.keys()) or "(none defined)"
+        console.print(f"[bold red]Column '{column}' not found in model '{model}'.[/bold red]")
+        console.print(f"Available columns: {available}")
+        raise typer.Exit(code=1)
+
+    # BFS traversal through downstream column references
+    console.print(f"\n[bold]Impact Analysis: [cyan]{model}[/cyan].[green]{column}[/green][/bold]\n")
+
+    visited = set()
+    queue = deque([(target_model_obj.unique_id, column, 0)])
+    results_by_hop: dict = {}
+
+    while queue:
+        current_model_id, current_col, hop = queue.popleft()
+        key = (current_model_id, current_col)
+        if key in visited:
+            continue
+        visited.add(key)
+
+        if hop > 0:
+            results_by_hop.setdefault(hop, []).append((current_model_id, current_col))
+
+        current_model_obj = project.models.get(current_model_id)
+        if current_model_obj and current_col in current_model_obj.columns:
+            for ref in current_model_obj.columns[current_col].downstream_columns:
+                if (ref.model_unique_id, ref.column_name) not in visited:
+                    queue.append((ref.model_unique_id, ref.column_name, hop + 1))
+
+    if not results_by_hop:
+        console.print("[yellow]No downstream column references found.[/yellow]")
+        console.print("[dim]This may be because lineage could not be resolved for this column.[/dim]")
+        raise typer.Exit(code=0)
+
+    total_cols = sum(len(v) for v in results_by_hop.values())
+    total_models_affected = len({mid for refs in results_by_hop.values() for mid, _ in refs})
+
+    for hop in sorted(results_by_hop.keys()):
+        label = "Direct downstream" if hop == 1 else f"Indirect downstream ({hop} hops)"
+        console.print(f"[bold]{label}:[/bold]")
+        for model_id, col_name in results_by_hop[hop]:
+            model_name_str = project.models[model_id].model_name
+            console.print(f"  [cyan]→[/cyan] [white]{model_name_str}[/white].[green]{col_name}[/green]")
+        console.print()
+
+    console.print(f"[bold]Total impact:[/bold] {total_cols} column(s) across {total_models_affected} model(s)")
 
 
 if __name__ == "__main__":

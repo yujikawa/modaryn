@@ -58,7 +58,7 @@ def test_sql_complexity_analysis_with_compiled_sql(dbt_project_with_compiled_sql
     model_ics = project.get_model("model.sample_project.int_customer_order_summary")
     assert model_ics.complexity.join_count == 2
     assert model_ics.complexity.cte_count == 2
-    assert model_ics.complexity.conditional_count == 3
+    assert model_ics.complexity.conditional_count == 2
     assert model_ics.complexity.where_count == 0
     assert model_ics.complexity.sql_char_count == 815 # Updated from 1076
     assert model_ics.downstream_model_count == 1 # fct_customer_product_affinity
@@ -128,7 +128,7 @@ def test_score_command_to_markdown_file(dbt_project_with_compiled_sql, tmp_path)
     assert output_file.exists()
     content = output_file.read_text()
     assert "# Modaryn Score and Scan Report" in content
-    assert "| Rank | Model Name | Score (Raw) | Quality Score | JOINs | CTEs | Conditionals | WHEREs | SQL Chars | Downstream Children | Tests | Coverage (%) |" in content
+    assert "| Rank | Model Name | Score (Raw) | Quality Score | JOINs | CTEs | Conditionals | WHEREs | SQL Chars | Downstream Children | Col. Down | Tests | Coverage (%) |" in content
     assert "int_customer_order_summary" in content
     assert "fct_customer_product_affinity" in content
     assert "int_order_product_details" in content
@@ -142,11 +142,11 @@ def test_score_command_to_markdown_file_with_zscore(dbt_project_with_compiled_sq
     result = runner.invoke(app, ["score", "--project-path", str(dbt_project_with_compiled_sql), "-f", "markdown", "-o", str(output_file), "--apply-zscore"])
     assert result.exit_code == 0
     assert "Report saved to" in result.stdout
-    assert output_file.name in result.stdout.replace("\x1b[1;36m", "").replace("\x1b[0m", "")
+    assert output_file.name in result.stdout.replace("\x1b[1;36m", "").replace("\x1b[0m", "").replace("\n", "")
     assert output_file.exists()
     content = output_file.read_text()
     assert "# Modaryn Score and Scan Report" in content
-    assert "| Rank | Model Name | Score (Z-Score) | Quality Score | JOINs | CTEs | Conditionals | WHEREs | SQL Chars | Downstream Children | Tests | Coverage (%) |" in content
+    assert "| Rank | Model Name | Score (Z-Score) | Quality Score | JOINs | CTEs | Conditionals | WHEREs | SQL Chars | Downstream Children | Col. Down | Tests | Coverage (%) |" in content
     assert "int_customer_order_summary" in content
 
 
@@ -173,11 +173,11 @@ def test_ci_check_command_fails_on_zscore_threshold_exceeded(dbt_project_with_co
     result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold), "--apply-zscore"])
     
     assert result.exit_code == 1
-    assert "Threshold exceeded by 6 models" in result.stdout
+    assert "Threshold exceeded by 5 models" in result.stdout
     assert "fct_customer_segmentation" in result.stdout # Ensure high-score models are listed
     assert "--- CI Check Summary ---" in result.stdout
     assert "Status: FAILED" in result.stdout
-    assert "6 models exceeded threshold." in result.stdout
+    assert "5 models exceeded threshold." in result.stdout
     assert "Total models checked: 30" in result.stdout
     assert f"Threshold: {test_threshold:.3f}" in result.stdout
 
@@ -197,8 +197,8 @@ def test_ci_check_command_passes_on_zscore_threshold_not_exceeded(dbt_project_wi
 
 
 def test_ci_check_command_fails_on_threshold_exceeded(dbt_project_with_compiled_sql):
-    # Models exceeding 20.0 raw score: fct_customer_segmentation (20.77) (1 model)
-    test_threshold = 18.0
+    # Models exceeding 17.0 raw score: fct_customer_segmentation (17.27) (1 model)
+    test_threshold = 16.0
     result = runner.invoke(app, ["ci-check", "--project-path", str(dbt_project_with_compiled_sql), "--threshold", str(test_threshold)])
     
     assert result.exit_code == 1
@@ -278,6 +278,7 @@ def test_score_command_with_apply_zscore_option_calls_scorer_correctly(
 
     mock_loader_instance = MagicMock()
     mock_loader_instance.load.return_value = mock_project_instance
+    mock_loader_instance.dialect = "duckdb"
     mock_manifest_loader.return_value = mock_loader_instance
 
     mock_scorer_instance = MagicMock()
@@ -292,7 +293,7 @@ def test_score_command_with_apply_zscore_option_calls_scorer_correctly(
 
     # Assert
     assert result.exit_code == 0
-    mock_manifest_loader.assert_called_once_with(dbt_project_with_compiled_sql, dialect="bigquery")
+    mock_manifest_loader.assert_called_once_with(dbt_project_with_compiled_sql, dialect=None)
     mock_loader_instance.load.assert_called_once()
     mock_scorer.assert_called_once_with(None) # No config passed
     mock_scorer_instance.score_project.assert_called_once_with(mock_project_instance, apply_zscore=True)
@@ -344,7 +345,7 @@ def test_terminal_output_with_zscore(sample_project_for_output_test: DbtProject)
 
         output = mock_file.getvalue()
         # Check for z-score indicator in header
-        assert "Score (Z-Score)" in output
+        assert "Score(Z)" in output
         # Check that the z-scores are displayed (sorted by z-score desc)
         # model2 has higher z-score (2.5)
         assert "model2" in output.splitlines()[4]
@@ -373,7 +374,7 @@ def test_terminal_output_without_zscore(sample_project_for_output_test: DbtProje
 
         output = mock_file.getvalue()
         # Check for raw score indicator in header
-        assert "Score (Raw)" in output
+        assert "Score(Raw)" in output
         # Check that the raw scores are displayed (sorted by raw_score desc)
         # model2 has higher raw_score (25.5)
         assert "model2" in output.splitlines()[4]

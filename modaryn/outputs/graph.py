@@ -30,25 +30,30 @@ def generate_visjs_graph_data(dbt_project: DbtProject, apply_zscore: bool = Fals
     edges: List[Dict] = []
 
     # 全モデルの最大スコアを計算（色付けの正規化のため）
-    # apply_zscoreフラグに応じてスコアを選択
-    all_scores = [model.score if apply_zscore else model.raw_score for model in dbt_project.models.values()]
+    # apply_zscoreフラグに応じてスコアを選択（Noneを除外）
+    all_scores = [
+        (model.score if apply_zscore else model.raw_score)
+        for model in dbt_project.models.values()
+        if (model.score if apply_zscore else model.raw_score) is not None
+    ]
     max_score = max(all_scores) if all_scores else 0
 
     for unique_id, model in dbt_project.models.items():
         # apply_zscoreフラグに応じてスコアを選択
         current_score = model.score if apply_zscore else model.raw_score
-        node_color = _get_node_color_by_score(current_score, max_score)
-        
+        score_display = f"{current_score:.2f}" if current_score is not None else "N/A"
+        node_color = _get_node_color_by_score(current_score if current_score is not None else 0, max_score)
+
         nodes.append({
             "id": unique_id,
             "label": model.model_name,
             "title": (
                 f"Model: {model.model_name}\\n"
-                f"Score: {current_score:.2f}\\n"
+                f"Score: {score_display}\\n"
                 f"Complexity (JOINs: {model.complexity.join_count}, CTEs: {model.complexity.cte_count}, Conditionals: {model.complexity.conditional_count}, WHEREs: {model.complexity.where_count}, SQL Chars: {model.complexity.sql_char_count})\\n"
                 f"Importance (Downstream: {model.downstream_model_count})\\n"
                 f"Quality: {model.quality_score:.2f}"
-            ) if model.complexity else f"Model: {model.model_name}\\nScore: {current_score:.2f}\\nQuality: {model.quality_score:.2f}",
+            ) if model.complexity else f"Model: {model.model_name}\\nScore: {score_display}\\nQuality: {model.quality_score:.2f}",
             "color": node_color
         })
 
