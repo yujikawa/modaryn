@@ -22,7 +22,11 @@ class OutputFormat(str, Enum):
     html = "html"
 
 
-__version__ = "0.1.0" # Define version here
+from importlib.metadata import version as _pkg_version, PackageNotFoundError
+try:
+    __version__ = _pkg_version("modaryn")
+except PackageNotFoundError:
+    __version__ = "unknown"
 
 app = typer.Typer(
     help="A CLI to analyze dbt projects and score model complexity."

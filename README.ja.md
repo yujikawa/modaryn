@@ -1,5 +1,6 @@
-![modaryn](./docs/assets/header.png)
+![modaryn](https://raw.githubusercontent.com/yujikawa/modaryn/main/docs/assets/header.png)
 
+[![PyPI version](https://img.shields.io/pypi/v/modaryn.svg)](https://pypi.org/project/modaryn/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
 [![dbt](https://img.shields.io/badge/dbt-compatible-orange.svg)](https://www.getdbt.com/)
@@ -18,7 +19,7 @@ SQL 方言は `manifest.json` から自動検出されます。カラムレベ�
 
 ### インストール
 ```bash
-uv pip install git+https://github.com/yujikawa/modaryn.git
+pip install modaryn
 ```
 
 ### 使い方
@@ -180,6 +181,6 @@ quality:
 
 ---
 
-![modaryn](./docs/assets/result.png)
+![modaryn](https://raw.githubusercontent.com/yujikawa/modaryn/main/docs/assets/result.png)
 
-![modaryn](./docs/assets/result2.png)
+![modaryn](https://raw.githubusercontent.com/yujikawa/modaryn/main/docs/assets/result2.png)
